@@ -1,0 +1,56 @@
+[
+    {
+        "id": 1,
+        "category": "Técnicas de maternidad",
+        "title": "Instructivo",
+        "description": "Principios del cuidado y preparación del parto, muda y pañalera.",
+        "content": "Antes de dar el gran paso a la maternidad es importante que conozcas los cuidados que son adecuados antes y después del parto, que deberías usar, pero igual qué deberías preparar antes de entrar en labor.\n\n1. Usar ropa cómoda y elástica.\nLa ropa que tú elijas puede influir en tu comodidad día a día, no solo el día de parto, elegir una muda que no afecte tu comodidad puede disminuir el ...",
+        "source": "IMSS, 2025.",
+        "icon": "figure.dress"
+    },
+    {
+        "id": 2,
+        "category": "Aseo del recién nacido",
+        "title": "Guía de aseo",
+        "description": "¿Eres principiante? Aquí tenemos una guía para...",
+        "content": "El aseo del recién nacido es fundamental para su salud y bienestar. Aquí te presentamos una guía paso a paso para que puedas realizar esta tarea con confianza.\n\n1. Preparar los materiales necesarios.\nAsegúrate de tener todo lo que necesitas antes de comenzar, como pañales, toallas, jabón suave, etc.\n\n2. Lavar tus manos.\nEs importante que tus manos estén limpias antes de tocar al bebé.",
+        "source": "IMSS, 2025.",
+        "icon": "figure.stand"
+    },
+    {
+        "id": 3,
+        "category": "Responsabilidades",
+        "title": "Decisiones en familia",
+        "description": "Decisiones en familia",
+        "content": "La llegada de un bebé implica muchas decisiones importantes que deben tomarse en familia. Aquí te presentamos algunos consejos para que estas decisiones sean más fáciles.\n\n1. Comunicación abierta.\nEs fundamental que todos los miembros de la familia expresen sus opiniones y sentimientos.\n\n2. Planificación.\nOrganizar las tareas y responsabilidades puede ayudar a reducir el estrés.",
+        "source": "IMSS, 2025.",
+        "icon": "figure.dress"
+    },
+    {
+        "id": 4,
+        "category": "Técnicas de maternidad",
+        "title": "Instructivo",
+        "description": "Principios del cuidado y preparación del parto, muda y pañalera.",
+        "content": "Antes de dar el gran paso a la maternidad es importante que conozcas los cuidados que son adecuados antes y después del parto, que deberías usar, pero igual qué deberías preparar antes de entrar en labor.\n\n1. Usar ropa cómoda y elástica.\nLa ropa que tú elijas puede influir en tu comodidad día a día, no solo el día de parto, elegir una muda que no afecte tu comodidad puede disminuir el ...",
+        "source": "IMSS, 2025.",
+        "icon": "figure.dress"
+    },
+    {
+        "id": 5,
+        "category": "Aseo del recién nacido",
+        "title": "Guía de aseo",
+        "description": "¿Eres principiante? Aquí tenemos una guía para...",
+        "content": "El aseo del recién nacido es fundamental para su salud y bienestar. Aquí te presentamos una guía paso a paso para que puedas realizar esta tarea con confianza.\n\n1. Preparar los materiales necesarios.\nAsegúrate de tener todo lo que necesitas antes de comenzar, como pañales, toallas, jabón suave, etc.\n\n2. Lavar tus manos.\nEs importante que tus manos estén limpias antes de tocar al bebé.",
+        "source": "IMSS, 2025.",
+        "icon": "figure.stand"
+    },
+    {
+        "id": 6,
+        "category": "Responsabilidades",
+        "title": "Decisiones en familia",
+        "description": "Decisiones en familia",
+        "content": "La llegada de un bebé implica muchas decisiones importantes que deben tomarse en familia. Aquí te presentamos algunos consejos para que estas decisiones sean más fáciles.\n\n1. Comunicación abierta.\nEs fundamental que todos los miembros de la familia expresen sus opiniones y sentimientos.\n\n2. Planificación.\nOrganizar las tareas y responsabilidades puede ayudar a reducir el estrés.",
+        "source": "IMSS, 2025.",
+        "icon": "figure.dress"
+    }
+]
