@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct IMCRegistro: Identifiable {
+struct IMCRegistro: Identifiable, Codable {
     var id = UUID()
     var fecha: String
     var imc: String
@@ -16,22 +16,17 @@ struct IMCRegistro: Identifiable {
 
 struct IMCTrackerView: View {
     @Environment(\.presentationMode) var presentationMode
+    var babyName: String
     
     @State private var imcActual: String = "15"
-    @State private var registros: [IMCRegistro] = [
-        IMCRegistro(fecha: "12/04/24", imc: "16.1", imcValue: 11.7),
-        IMCRegistro(fecha: "03/02/24", imc: "14.9", imcValue: 10.5),
-        IMCRegistro(fecha: "20/12/23", imc: "9.7", imcValue: 9.3),
-        IMCRegistro(fecha: "11/11/23", imc: "6.5", imcValue: 8.05)
-    ]
-    
+    @State private var registros: [IMCRegistro] = []
     @State private var showAddSheet = false
     @State private var showEditSheet = false
     @State private var registroParaEditar: IMCRegistro?
     
     var body: some View {
         VStack(spacing: 0) {
-            // Botón de regreso
+            // Header con botón de regreso
             HStack {
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
@@ -40,7 +35,7 @@ struct IMCTrackerView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.blue)
-                        Text("IMC de Ethan")
+                        Text("IMC de \(babyName)")
                             .padding(.horizontal, 10)
                             .foregroundColor(.black)
                             .fontWeight(.medium)
@@ -68,12 +63,12 @@ struct IMCTrackerView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-
+            // Contenido principal
             VStack(spacing: 10) {
-                // Sección de imc actual
+                // Tarjeta de IMC actual
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
-                        Text("El Indice de Masa Corporal de Ethan esta en un rango de:")
+                        Text("El IMC de \(babyName) está en:")
                             .font(.system(size: 16))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.leading)
@@ -90,9 +85,9 @@ struct IMCTrackerView: View {
                 .cornerRadius(20)
                 .shadow(color: Color.white.opacity(0.05), radius: 2)
                 
-                // Sección de registros
+                // Lista de registros
                 ScrollView {
-                    VStack() {
+                    VStack {
                         Text("Registros")
                             .font(.caption)
                             .foregroundColor(.gray)
@@ -158,7 +153,10 @@ struct IMCTrackerView: View {
                                     Divider().frame(height: 60)
                                     
                                     Button(action: {
-                                        registros.removeAll { $0.id == registro.id }
+                                        withAnimation {
+                                            registros.removeAll { $0.id == registro.id }
+                                            saveRegistros()
+                                        }
                                     }) {
                                         Image(systemName: "trash")
                                             .font(.system(size: 14))
@@ -189,126 +187,161 @@ struct IMCTrackerView: View {
             .padding(.vertical, 20)
         }
         .navigationBarHidden(true)
+        .onAppear {
+            loadRegistros()
+            updateCurrentIMC()
+        }
         .sheet(isPresented: $showAddSheet) {
-            AddIMCSheet(registros: $registros)
-                .background(Color(.blue).opacity(0.3).blur(radius: 100))
-                .presentationCornerRadius(30)
+            AddIMCSheet(registros: $registros, onSave: {
+                saveRegistros()
+                updateCurrentIMC()
+            })
         }
         .sheet(item: $registroParaEditar) { registro in
-            EditIMCSheet(registros: $registros, registro: registro)
-                .background(Color(.orange).opacity(0.3).blur(radius: 100))
-                .presentationCornerRadius(30)
+            EditIMCSheet(registro: registro, onSave: { updatedRegistro in
+                if let index = registros.firstIndex(where: { $0.id == updatedRegistro.id }) {
+                    registros[index] = updatedRegistro
+                    saveRegistros()
+                    updateCurrentIMC()
+                }
+            })
+        }
+    }
+    
+    private func updateCurrentIMC() {
+        imcActual = registros.first?.imc ?? "0"
+    }
+    
+    private func saveRegistros() {
+        if let encoded = try? JSONEncoder().encode(registros) {
+            UserDefaults.standard.set(encoded, forKey: "imcRegistros_\(babyName)")
+        }
+    }
+    
+    private func loadRegistros() {
+        if let data = UserDefaults.standard.data(forKey: "imcRegistros_\(babyName)"),
+           let decoded = try? JSONDecoder().decode([IMCRegistro].self, from: data) {
+            registros = decoded.sorted { $0.fecha > $1.fecha }
+        } else {
+            // Datos de ejemplo si no hay registros
+            registros = [
+                IMCRegistro(fecha: "12/04/24", imc: "16.1", imcValue: 16.1),
+                IMCRegistro(fecha: "03/02/24", imc: "14.9", imcValue: 14.9)
+            ]
         }
     }
 }
 
+// Vista para añadir nuevo registro
 struct AddIMCSheet: View {
-    @Binding var registros: [IMCRegistro]
     @Environment(\.presentationMode) var presentationMode
+    @Binding var registros: [IMCRegistro]
+    var onSave: () -> Void
     
     @State private var fecha = Date()
     @State private var imc: String = ""
     
-    var dateFormatter: DateFormatter {
+    private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter
     }
     
     var body: some View {
-        VStack(spacing: 5) {
-            Text("Agregar Nuevo Registro")
+        VStack(spacing: 20) {
+            Text("Agregar Registro de IMC")
                 .font(.title2)
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
                 .datePickerStyle(GraphicalDatePickerStyle())
                 .padding(.horizontal)
-            HStack {
-                TextField("IMC", text: $imc)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.decimalPad)
-                    .cornerRadius(20)
-                    .padding(.horizontal)
-                
-                Button("Guardar") {
-                    if let imcValue = Double(imc) {
-                        let formattedDate = dateFormatter.string(from: fecha)
-                        registros.append(IMCRegistro(fecha: formattedDate, imc: imc, imcValue: imcValue))
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .cornerRadius(25)
+            
+            TextField("Valor de IMC", text: $imc)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.horizontal)
+            
+            Button("Guardar") {
+                if !imc.isEmpty, let value = Double(imc) {
+                    let newRegistro = IMCRegistro(
+                        fecha: dateFormatter.string(from: fecha),
+                        imc: imc,
+                        imcValue: value
+                    )
+                    registros.append(newRegistro)
+                    onSave()
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
-            Spacer()
+            .buttonStyle(.borderedProminent)
+            .padding()
         }
-        .padding(10)
-        .cornerRadius(20)
-        .padding(20)
+        .padding()
     }
 }
 
+// Vista para editar registro
 struct EditIMCSheet: View {
-    @Binding var registros: [IMCRegistro]
-    var registro: IMCRegistro
     @Environment(\.presentationMode) var presentationMode
+    var registro: IMCRegistro
+    var onSave: (IMCRegistro) -> Void
     
     @State private var fecha: Date
     @State private var imc: String
     
-    init(registros: Binding<[IMCRegistro]>, registro: IMCRegistro) {
-        self._registros = registros
-        self.registro = registro
-        _fecha = State(initialValue: Date())
-        _imc = State(initialValue: registro.imc)
-    }
-    
-    var dateFormatter: DateFormatter {
+    private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter
     }
     
+    init(registro: IMCRegistro, onSave: @escaping (IMCRegistro) -> Void) {
+        self.registro = registro
+        self.onSave = onSave
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        _fecha = State(initialValue: formatter.date(from: registro.fecha) ?? Date())
+        _imc = State(initialValue: registro.imc)
+    }
+    
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 20) {
             Text("Editar Registro")
                 .font(.title2)
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
                 .datePickerStyle(GraphicalDatePickerStyle())
-                .padding()
-            
-            HStack{
-                TextField("IMC", text: $imc)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.decimalPad)
-                    .cornerRadius(20)
-                    .padding(.horizontal)
-                
-                Button("Guardar") {
-                    if let index = registros.firstIndex(where: { $0.id == registro.id }) {
-                        let formattedDate = dateFormatter.string(from: fecha)
-                        registros[index] = IMCRegistro(id: registro.id, fecha: formattedDate, imc: imc, imcValue: Double(imc) ?? 0.0)
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .cornerRadius(25)
                 .padding(.horizontal)
+            
+            TextField("Valor de IMC", text: $imc)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding(.horizontal)
+            
+            Button("Guardar Cambios") {
+                if !imc.isEmpty, let value = Double(imc) {
+                    let updatedRegistro = IMCRegistro(
+                        id: registro.id,
+                        fecha: dateFormatter.string(from: fecha),
+                        imc: imc,
+                        imcValue: value
+                    )
+                    onSave(updatedRegistro)
+                    presentationMode.wrappedValue.dismiss()
+                }
             }
-            Spacer()
+            .buttonStyle(.borderedProminent)
+            .padding()
         }
-        .padding(10)
-        .cornerRadius(20)
-        .padding(20)
+        .padding()
     }
 }
 
 struct IMCTrackerView_Previews: PreviewProvider {
     static var previews: some View {
-        IMCTrackerView()
+        IMCTrackerView(babyName: "Ethan")
     }
 }

@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct EstaturaRegistro: Identifiable {
+struct EstaturaRegistro: Identifiable, Codable {
     var id = UUID()
     var fecha: String
     var estatura: String
@@ -16,22 +16,17 @@ struct EstaturaRegistro: Identifiable {
 
 struct EstaturaTrackerView: View {
     @Environment(\.presentationMode) var presentationMode
+    var babyName: String
     
     @State private var estaturaActual: String = "100"
-    @State private var registros: [EstaturaRegistro] = [
-        EstaturaRegistro(fecha: "12/04/24", estatura: "189", estaturaValue: 11.7),
-        EstaturaRegistro(fecha: "03/02/24", estatura: "70", estaturaValue: 10.5),
-        EstaturaRegistro(fecha: "20/12/23", estatura: "63", estaturaValue: 9.3),
-        EstaturaRegistro(fecha: "11/11/23", estatura: "40", estaturaValue: 8.05)
-    ]
-    
+    @State private var registros: [EstaturaRegistro] = []
     @State private var showAddSheet = false
     @State private var showEditSheet = false
     @State private var registroParaEditar: EstaturaRegistro?
     
     var body: some View {
         VStack(spacing: 0) {
-            // Botón de regreso
+            // Header con botón de regreso
             HStack {
                 Button(action: {
                     presentationMode.wrappedValue.dismiss()
@@ -40,7 +35,7 @@ struct EstaturaTrackerView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.blue)
-                        Text("Estatura de Ethan")
+                        Text("Estatura de \(babyName)")
                             .padding(.horizontal, 10)
                             .foregroundColor(.black)
                             .fontWeight(.medium)
@@ -68,19 +63,19 @@ struct EstaturaTrackerView: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-
+            // Contenido principal
             VStack(spacing: 10) {
-                // Sección de estatura actual
+                // Tarjeta de estatura actual
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
-                        Text("La estatura de Ethan esta en un rango de:")
+                        Text("La estatura de \(babyName) está en:")
                             .font(.system(size: 16))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.leading)
                         
                         Spacer()
                         
-                        Text(estaturaActual + " cm")
+                        Text("\(estaturaActual) cm")
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(.black)
                     }
@@ -90,9 +85,9 @@ struct EstaturaTrackerView: View {
                 .cornerRadius(20)
                 .shadow(color: Color.white.opacity(0.05), radius: 2)
                 
-                // Sección de registros
+                // Lista de registros
                 ScrollView {
-                    VStack() {
+                    VStack {
                         Text("Registros")
                             .font(.caption)
                             .foregroundColor(.gray)
@@ -139,7 +134,7 @@ struct EstaturaTrackerView: View {
                                     
                                     Divider().frame(height: 60)
                                     
-                                    Text(registro.estatura + " cm")
+                                    Text("\(registro.estatura) cm")
                                         .font(.system(size: 14))
                                         .frame(width: 60, alignment: .leading)
                                     
@@ -158,7 +153,10 @@ struct EstaturaTrackerView: View {
                                     Divider().frame(height: 60)
                                     
                                     Button(action: {
-                                        registros.removeAll { $0.id == registro.id }
+                                        withAnimation {
+                                            registros.removeAll { $0.id == registro.id }
+                                            saveRegistros()
+                                        }
                                     }) {
                                         Image(systemName: "trash")
                                             .font(.system(size: 14))
@@ -189,120 +187,161 @@ struct EstaturaTrackerView: View {
             .padding(.vertical, 20)
         }
         .navigationBarHidden(true)
+        .onAppear {
+            loadRegistros()
+            updateCurrentHeight()
+        }
         .sheet(isPresented: $showAddSheet) {
-            AddEstaturaSheet(registros: $registros)
-                .background(Color(.blue).opacity(0.3).blur(radius: 100))
-                .presentationCornerRadius(30)
+            AddEstaturaSheet(registros: $registros, onSave: {
+                saveRegistros()
+                updateCurrentHeight()
+            })
         }
         .sheet(item: $registroParaEditar) { registro in
-            EditEstaturaSheet(registros: $registros, registro: registro)
-                .background(Color(.orange).opacity(0.3).blur(radius: 100))
-                .presentationCornerRadius(30)
+            EditEstaturaSheet(registro: registro, onSave: { updatedRegistro in
+                if let index = registros.firstIndex(where: { $0.id == updatedRegistro.id }) {
+                    registros[index] = updatedRegistro
+                    saveRegistros()
+                    updateCurrentHeight()
+                }
+            })
+        }
+    }
+    
+    private func updateCurrentHeight() {
+        estaturaActual = registros.first?.estatura ?? "0"
+    }
+    
+    private func saveRegistros() {
+        if let encoded = try? JSONEncoder().encode(registros) {
+            UserDefaults.standard.set(encoded, forKey: "estaturaRegistros_\(babyName)")
+        }
+    }
+    
+    private func loadRegistros() {
+        if let data = UserDefaults.standard.data(forKey: "estaturaRegistros_\(babyName)"),
+           let decoded = try? JSONDecoder().decode([EstaturaRegistro].self, from: data) {
+            registros = decoded.sorted { $0.fecha > $1.fecha }
+        } else {
+            // Datos de ejemplo si no hay registros
+            registros = [
+                EstaturaRegistro(fecha: "12/04/24", estatura: "189", estaturaValue: 189),
+                EstaturaRegistro(fecha: "03/02/24", estatura: "70", estaturaValue: 70)
+            ]
         }
     }
 }
 
+// Vista para añadir nuevo registro
 struct AddEstaturaSheet: View {
-    @Binding var registros: [EstaturaRegistro]
     @Environment(\.presentationMode) var presentationMode
+    @Binding var registros: [EstaturaRegistro]
+    var onSave: () -> Void
     
     @State private var fecha = Date()
     @State private var estatura: String = ""
     
-    var dateFormatter: DateFormatter {
+    private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter
     }
     
     var body: some View {
-        Text("Agregar Nuevo Registro")
-            .font(.title2)
-            .fontWeight(.bold)
-        
         VStack(spacing: 20) {
+            Text("Agregar Registro de Estatura")
+                .font(.title2)
+                .fontWeight(.bold)
+            
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
                 .datePickerStyle(GraphicalDatePickerStyle())
                 .padding(.horizontal)
             
-            TextField("Estatura, solo números", text: $estatura)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+            TextField("Estatura (cm)", text: $estatura)
                 .keyboardType(.decimalPad)
-                .cornerRadius(20)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.horizontal)
             
             Button("Guardar") {
-                if let estaturaValue = Double(estatura) {
-                    let formattedDate = dateFormatter.string(from: fecha)
-                    registros.append(EstaturaRegistro(fecha: formattedDate, estatura: estatura, estaturaValue: estaturaValue))
+                if !estatura.isEmpty, let value = Double(estatura) {
+                    let newRegistro = EstaturaRegistro(
+                        fecha: dateFormatter.string(from: fecha),
+                        estatura: estatura,
+                        estaturaValue: value
+                    )
+                    registros.append(newRegistro)
+                    onSave()
                     presentationMode.wrappedValue.dismiss()
                 }
             }
             .buttonStyle(.borderedProminent)
-            .cornerRadius(25)
+            .padding()
         }
-        .padding(10)
-        .cornerRadius(20)
-        .padding(20)
+        .padding()
     }
 }
 
+// Vista para editar registro
 struct EditEstaturaSheet: View {
-    @Binding var registros: [EstaturaRegistro]
-    var registro: EstaturaRegistro
     @Environment(\.presentationMode) var presentationMode
+    var registro: EstaturaRegistro
+    var onSave: (EstaturaRegistro) -> Void
     
     @State private var fecha: Date
     @State private var estatura: String
     
-    init(registros: Binding<[EstaturaRegistro]>, registro: EstaturaRegistro) {
-        self._registros = registros
-        self.registro = registro
-        _fecha = State(initialValue: Date())
-        _estatura = State(initialValue: registro.estatura)
-    }
-    
-    var dateFormatter: DateFormatter {
+    private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter
     }
     
-    var body: some View {
-        Text("Editar Registro")
-            .font(.title2)
-            .fontWeight(.bold)
+    init(registro: EstaturaRegistro, onSave: @escaping (EstaturaRegistro) -> Void) {
+        self.registro = registro
+        self.onSave = onSave
         
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        _fecha = State(initialValue: formatter.date(from: registro.fecha) ?? Date())
+        _estatura = State(initialValue: registro.estatura)
+    }
+    
+    var body: some View {
         VStack(spacing: 20) {
+            Text("Editar Registro")
+                .font(.title2)
+                .fontWeight(.bold)
+            
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
                 .datePickerStyle(GraphicalDatePickerStyle())
                 .padding(.horizontal)
             
-            TextField("Estatura, solo números", text: $estatura)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+            TextField("Estatura (cm)", text: $estatura)
                 .keyboardType(.decimalPad)
-                .cornerRadius(20)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.horizontal)
             
             Button("Guardar Cambios") {
-                if let index = registros.firstIndex(where: { $0.id == registro.id }) {
-                    let formattedDate = dateFormatter.string(from: fecha)
-                    registros[index] = EstaturaRegistro(id: registro.id, fecha: formattedDate, estatura: estatura, estaturaValue: Double(estatura) ?? 0.0)
+                if !estatura.isEmpty, let value = Double(estatura) {
+                    let updatedRegistro = EstaturaRegistro(
+                        id: registro.id,
+                        fecha: dateFormatter.string(from: fecha),
+                        estatura: estatura,
+                        estaturaValue: value
+                    )
+                    onSave(updatedRegistro)
                     presentationMode.wrappedValue.dismiss()
                 }
             }
             .buttonStyle(.borderedProminent)
-            .cornerRadius(25)
+            .padding()
         }
-        .padding(10)
-        .cornerRadius(20)
-        .padding(20)
+        .padding()
     }
 }
 
-
 struct EstaturaTrackerView_Previews: PreviewProvider {
     static var previews: some View {
-        EstaturaTrackerView()
+        EstaturaTrackerView( babyName: "Ethan")
     }
 }

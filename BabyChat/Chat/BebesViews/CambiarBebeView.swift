@@ -22,7 +22,6 @@ struct CambiarBebeView: View {
     @Binding var selectedBabyName: String
     var onBabyChanged: (() -> Void)?
     
-    // Lista de bebés registrados
     @State private var babies: [BabyProfile] = [
         BabyProfile(name: "Ethan", imageName: "baby1", peso: "1.6 kg", estatura: "41 cm", imc: "10"),
         BabyProfile(name: "Liam", imageName: "baby2", peso: "2.1 kg", estatura: "45 cm", imc: "11"),
@@ -30,9 +29,7 @@ struct CambiarBebeView: View {
         BabyProfile(name: "Sophia", imageName: "baby4", peso: "2.0 kg", estatura: "44 cm", imc: "10")
     ]
     
-    // Navegación
     @State private var navigationPath = NavigationPath()
-    @State private var showRecomendacionAIView = false
     
     enum DestinoNavegacion: Hashable {
         case estatura
@@ -46,7 +43,6 @@ struct CambiarBebeView: View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Título y botón de cerrar
                     HStack {
                         Text("Seleccionar Bebé")
                             .font(.title2)
@@ -65,13 +61,11 @@ struct CambiarBebeView: View {
                     .padding(.horizontal)
                     
                     ScrollView {
-                        // Lista de bebés
                         ForEach(babies) { baby in
                             Button(action: {
-                                // Actualiza la selección SIN cerrar la sheet
                                 selectedBabyImage = baby.imageName
                                 selectedBabyName = baby.name
-                                onBabyChanged?() // Opcional: Notifica cambios
+                                onBabyChanged?()
                             }) {
                                 HStack {
                                     Image(baby.imageName)
@@ -112,7 +106,6 @@ struct CambiarBebeView: View {
                         }
                     }
                     
-                    // Panel del bebé seleccionado
                     if let baby = babies.first(where: { $0.name == selectedBabyName }) {
                         VStack(spacing: 15) {
                             Text("Perfil de \(baby.name)")
@@ -136,7 +129,6 @@ struct CambiarBebeView: View {
                                     .clipShape(Circle())
                             }
                             
-                            // Botón de Seguimiento (ahora funciona sin cerrar la sheet)
                             NavigationLink(value: DestinoNavegacion.seguimiento) {
                                 HStack {
                                     Text("Ver Seguimiento")

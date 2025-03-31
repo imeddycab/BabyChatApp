@@ -32,7 +32,7 @@ struct SeguimientoBebeView: View {
                             
                             Spacer()
                             
-                            Image("\(babyImage)")
+                            Image(babyImage)
                                 .resizable()
                                 .scaledToFill()
                                 .frame(width: 90, height: 90)
@@ -44,19 +44,27 @@ struct SeguimientoBebeView: View {
                     .cornerRadius(25)
                     .padding(.horizontal)
                     
-                    // Sección de seguimiento
+                    // Sección de seguimiento con navegación
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Seguimiento")
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        // Gráficos de seguimiento
                         VStack(spacing: 15) {
-                            TrackingCard(title: "Peso", value: babyProfile.peso, icon: "scalemass.fill", color: .blue)
+                            NavigationLink(destination: PesoTrackerView(babyName: babyName)) {
+                                TrackingCard(title: "Peso", value: babyProfile.peso, icon: "scalemass.fill", color: .blue)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                             
-                            TrackingCard(title: "Estatura", value: babyProfile.estatura, icon: "ruler.fill", color: .green)
+                            NavigationLink(destination: EstaturaTrackerView(babyName: babyName)) {
+                                TrackingCard(title: "Estatura", value: babyProfile.estatura, icon: "ruler.fill", color: .green)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                             
-                            TrackingCard(title: "IMC", value: babyProfile.imc, icon: "chart.bar.fill", color: .orange)
+                            NavigationLink(destination: IMCTrackerView(babyName: babyName)) {
+                                TrackingCard(title: "IMC", value: babyProfile.imc, icon: "chart.bar.fill", color: .orange)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal)
@@ -103,13 +111,8 @@ struct TrackingCard: View {
             
             Spacer()
             
-            // Gráfico circular simple sin SVG
-            ZStack {
-                Image(systemName: "chevron.right.circle.fill")
-                    .font(.system(size: 25, weight: .bold))
-                    .foregroundColor(color)
-                    .padding(.horizontal)
-            }
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray)
         }
         .padding()
         .background(Color(.systemBackground))
