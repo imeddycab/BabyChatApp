@@ -221,7 +221,7 @@ struct SignUpView: View {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
     }
-    
+
     private func validateRegistration() {
         guard !firstName.isEmpty else {
             alertMessage = "Por favor ingresa tu nombre"
@@ -272,16 +272,18 @@ struct SignUpView: View {
             lastName: lastName,
             email: email,
             password: password
-        ) { success in
+        ) { success, errorMessage in
             isLoading = false
             if success {
                 onSignUpSuccess()
             } else {
-                alertMessage = "El correo electrónico ya está registrado"
+                alertMessage = errorMessage ?? "Error al registrar el usuario"
                 showingAlert = true
             }
         }
     }
+
+    // ... (resto del código se mantiene igual)
     
     private func simulateSocialSignUp() {
         isLoading = true
