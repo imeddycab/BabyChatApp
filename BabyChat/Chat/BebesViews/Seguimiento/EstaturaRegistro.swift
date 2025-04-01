@@ -196,6 +196,9 @@ struct EstaturaTrackerView: View {
                 saveRegistros()
                 updateCurrentHeight()
             })
+            .background(Color(.blue).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
         .sheet(item: $registroParaEditar) { registro in
             EditEstaturaSheet(registro: registro, onSave: { updatedRegistro in
@@ -205,6 +208,9 @@ struct EstaturaTrackerView: View {
                     updateCurrentHeight()
                 }
             })
+            .background(Color(.orange).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
     }
     
@@ -254,30 +260,33 @@ struct AddEstaturaSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
             
-            TextField("Estatura (cm)", text: $estatura)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar") {
-                if !estatura.isEmpty, let value = Double(estatura) {
-                    let newRegistro = EstaturaRegistro(
-                        fecha: dateFormatter.string(from: fecha),
-                        estatura: estatura,
-                        estaturaValue: value
-                    )
-                    registros.append(newRegistro)
-                    onSave()
-                    presentationMode.wrappedValue.dismiss()
+            HStack {
+                Text("Estatura:")
+
+                TextField("cm", text: $estatura)
+                    .padding(10)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Guardar") {
+                    if !estatura.isEmpty, let value = Double(estatura) {
+                        let newRegistro = EstaturaRegistro(
+                            fecha: dateFormatter.string(from: fecha),
+                            estatura: estatura,
+                            estaturaValue: value
+                        )
+                        registros.append(newRegistro)
+                        onSave()
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 
@@ -313,30 +322,33 @@ struct EditEstaturaSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
-            
-            TextField("Estatura (cm)", text: $estatura)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar Cambios") {
-                if !estatura.isEmpty, let value = Double(estatura) {
-                    let updatedRegistro = EstaturaRegistro(
-                        id: registro.id,
-                        fecha: dateFormatter.string(from: fecha),
-                        estatura: estatura,
-                        estaturaValue: value
-                    )
-                    onSave(updatedRegistro)
-                    presentationMode.wrappedValue.dismiss()
+                
+            HStack {
+                Text("Estatura:")
+                
+                TextField("cm", text: $estatura)
+                    .padding(10)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Actualizar") {
+                    if !estatura.isEmpty, let value = Double(estatura) {
+                        let updatedRegistro = EstaturaRegistro(
+                            id: registro.id,
+                            fecha: dateFormatter.string(from: fecha),
+                            estatura: estatura,
+                            estaturaValue: value
+                        )
+                        onSave(updatedRegistro)
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 

@@ -196,6 +196,9 @@ struct IMCTrackerView: View {
                 saveRegistros()
                 updateCurrentIMC()
             })
+            .background(Color(.blue).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
         .sheet(item: $registroParaEditar) { registro in
             EditIMCSheet(registro: registro, onSave: { updatedRegistro in
@@ -205,6 +208,9 @@ struct IMCTrackerView: View {
                     updateCurrentIMC()
                 }
             })
+            .background(Color(.orange).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
     }
     
@@ -254,30 +260,33 @@ struct AddIMCSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
             
-            TextField("Valor de IMC", text: $imc)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar") {
-                if !imc.isEmpty, let value = Double(imc) {
-                    let newRegistro = IMCRegistro(
-                        fecha: dateFormatter.string(from: fecha),
-                        imc: imc,
-                        imcValue: value
-                    )
-                    registros.append(newRegistro)
-                    onSave()
-                    presentationMode.wrappedValue.dismiss()
+            HStack {
+                Text("IMC:")
+                
+                TextField("IMC", text: $imc)
+                    .padding(5)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Guardar") {
+                    if !imc.isEmpty, let value = Double(imc) {
+                        let newRegistro = IMCRegistro(
+                            fecha: dateFormatter.string(from: fecha),
+                            imc: imc,
+                            imcValue: value
+                        )
+                        registros.append(newRegistro)
+                        onSave()
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 
@@ -313,30 +322,33 @@ struct EditIMCSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
             
-            TextField("Valor de IMC", text: $imc)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar Cambios") {
-                if !imc.isEmpty, let value = Double(imc) {
-                    let updatedRegistro = IMCRegistro(
-                        id: registro.id,
-                        fecha: dateFormatter.string(from: fecha),
-                        imc: imc,
-                        imcValue: value
-                    )
-                    onSave(updatedRegistro)
-                    presentationMode.wrappedValue.dismiss()
+            HStack {
+                Text("IMC:")
+                
+                TextField("IMC", text: $imc)
+                    .padding(5)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Actualizar") {
+                    if !imc.isEmpty, let value = Double(imc) {
+                        let updatedRegistro = IMCRegistro(
+                            id: registro.id,
+                            fecha: dateFormatter.string(from: fecha),
+                            imc: imc,
+                            imcValue: value
+                        )
+                        onSave(updatedRegistro)
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 

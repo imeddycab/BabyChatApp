@@ -49,6 +49,7 @@ struct ChatView: View {
                             .fill(Color.blue)
                     )
                     .padding(.top, 10)
+                    .padding(.horizontal)
                 
                 // Botón para Nuevo chat
                 Button(action: {
@@ -114,7 +115,7 @@ struct ChatView: View {
                 ]
             }
             .clipShape(RoundedRectangle(cornerRadius: 35))
-            .padding()
+            .padding(10)
             .background(Color(.blue).opacity(0.9).blur(radius: 100))
             .presentationCornerRadius(30)
         }
@@ -132,7 +133,7 @@ struct ChatView: View {
             "temperature": 0.6,
             "max_completion_tokens": 1024,
             "top_p": 1,
-            "messages": messages.map { ["role": $0.isUser ? "user" : "assistant", "content": $0.text] }
+            "messages": messages.map { ["role": $0.isUser ? "user" : "Car assistant", "content": $0.text] }
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else { return }

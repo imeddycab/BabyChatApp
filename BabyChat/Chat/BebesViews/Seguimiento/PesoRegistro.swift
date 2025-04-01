@@ -196,6 +196,9 @@ struct PesoTrackerView: View {
                 saveRegistros()
                 updateCurrentWeight()
             })
+            .background(Color(.blue).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
         .sheet(item: $registroParaEditar) { registro in
             EditPesoSheet(registro: registro, onSave: { updatedRegistro in
@@ -205,6 +208,9 @@ struct PesoTrackerView: View {
                     updateCurrentWeight()
                 }
             })
+            .background(Color(.orange).opacity(0.3).blur(radius: 100))
+            .presentationCornerRadius(30)
+            .presentationDetents([.fraction(0.3)])
         }
     }
     
@@ -254,30 +260,28 @@ struct AddPesoSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
             
-            TextField("Peso (kg)", text: $peso)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar") {
-                if !peso.isEmpty, let value = Double(peso) {
-                    let newRegistro = PesoRegistro(
-                        fecha: dateFormatter.string(from: fecha),
-                        peso: peso,
-                        pesoValue: value
-                    )
-                    registros.append(newRegistro)
-                    onSave()
-                    presentationMode.wrappedValue.dismiss()
+            HStack {
+                Text("Peso:")
+                
+                TextField("kg", text: $peso)
+                    .padding(5)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Guardar") {
+                    if let pesoValue = Double(peso) {
+                        let formattedDate = dateFormatter.string(from: fecha)
+                        registros.append(PesoRegistro(fecha: formattedDate, peso: "\(peso)", pesoValue: pesoValue))
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 
@@ -313,30 +317,33 @@ struct EditPesoSheet: View {
                 .fontWeight(.bold)
             
             DatePicker("Fecha", selection: $fecha, displayedComponents: .date)
-                .datePickerStyle(GraphicalDatePickerStyle())
-                .padding(.horizontal)
             
-            TextField("Peso (kg)", text: $peso)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding(.horizontal)
-            
-            Button("Guardar Cambios") {
-                if !peso.isEmpty, let value = Double(peso) {
-                    let updatedRegistro = PesoRegistro(
-                        id: registro.id,
-                        fecha: dateFormatter.string(from: fecha),
-                        peso: peso,
-                        pesoValue: value
-                    )
-                    onSave(updatedRegistro)
-                    presentationMode.wrappedValue.dismiss()
+            HStack {
+                Text("Peso:")
+                
+                TextField("kg", text: $peso)
+                    .padding(5)
+                    .background(.white)
+                    .cornerRadius(20)
+                    .keyboardType(.decimalPad)
+                
+                Button("Actualizar") {
+                    if !peso.isEmpty, let value = Double(peso) {
+                        let updatedRegistro = PesoRegistro(
+                            id: registro.id,
+                            fecha: dateFormatter.string(from: fecha),
+                            peso: peso,
+                            pesoValue: value
+                        )
+                        onSave(updatedRegistro)
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+                .buttonStyle(.borderedProminent)
+                .cornerRadius(25)
             }
-            .buttonStyle(.borderedProminent)
-            .padding()
         }
-        .padding()
+        .padding(.horizontal)
     }
 }
 
