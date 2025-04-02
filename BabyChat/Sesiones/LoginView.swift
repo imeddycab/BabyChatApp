@@ -186,8 +186,6 @@ struct LoginView: View {
         }
     }
 
-    // ... (resto del código se mantiene igual)
-    
     private func simulateSocialLogin() {
         isLoading = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {

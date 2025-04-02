@@ -86,6 +86,9 @@ class AuthManager: ObservableObject {
             
             if let error = error {
                 print("Error obteniendo datos del usuario: \(error.localizedDescription)")
+                // Aún permitimos el login aunque falle la carga de datos adicionales
+                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
+                self.isAuthenticated = true
                 return
             }
             
@@ -96,6 +99,10 @@ class AuthManager: ObservableObject {
                 let email = data?["email"] as? String
                 
                 self.currentUser = User(uid: uid, email: email, firstName: firstName, lastName: lastName)
+                self.isAuthenticated = true
+            } else {
+                // Si no existe el documento, creamos uno básico
+                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
                 self.isAuthenticated = true
             }
         }
