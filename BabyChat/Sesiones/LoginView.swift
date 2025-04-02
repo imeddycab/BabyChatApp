@@ -153,7 +153,7 @@ struct LoginView: View {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
     }
-    
+
     private func validateCredentials() {
         guard !email.isEmpty else {
             alertMessage = "Por favor ingresa tu correo electrónico"
@@ -175,17 +175,17 @@ struct LoginView: View {
         
         isLoading = true
         
-        AuthManager.shared.login(email: email, password: password) { success in
+        AuthManager.shared.login(email: email, password: password) { success, errorMessage in
             isLoading = false
             if success {
                 onLoginSuccess()
             } else {
-                alertMessage = "Credenciales incorrectas. Por favor intenta nuevamente."
+                alertMessage = errorMessage ?? "Credenciales incorrectas. Por favor intenta nuevamente."
                 showingAlert = true
             }
         }
     }
-    
+
     private func simulateSocialLogin() {
         isLoading = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {

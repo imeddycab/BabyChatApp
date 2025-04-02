@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import FirebaseAuth
+import FirebaseFirestore
 
 class AuthManager: ObservableObject {
     static let shared = AuthManager()
@@ -13,49 +15,115 @@ class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var currentUser: User?
     
-    // Credenciales de ejemplo y usuarios registrados
-    private var registeredUsers: [User] = [
-        User(email: "eddy@mail.com", password: "password123", firstName: "Eddy", lastName: "Caballero"),
-        User(email: "emily@mail.com", password: "emily123", firstName: "Emily", lastName: "Smith")
-    ]
-    
     struct User {
-        let email: String
-        let password: String
-        let firstName: String
-        let lastName: String
+        let uid: String
+        let email: String?
+        let firstName: String?
+        let lastName: String?
     }
     
-    func login(email: String, password: String, completion: @escaping (Bool) -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            if let user = self.registeredUsers.first(where: { $0.email == email && $0.password == password }) {
-                self.currentUser = user
-                self.isAuthenticated = true
-                completion(true)
+    private var db = Firestore.firestore()
+    
+    init() {
+        Auth.auth().addStateDidChangeListener { [weak self] (_, user) in
+            if let user = user {
+                self?.fetchUserData(uid: user.uid)
             } else {
-                self.isAuthenticated = false
-                completion(false)
+                self?.isAuthenticated = false
+                self?.currentUser = nil
             }
         }
     }
     
-    func register(firstName: String, lastName: String, email: String, password: String, completion: @escaping (Bool) -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            guard !self.registeredUsers.contains(where: { $0.email == email }) else {
-                completion(false)
+    func login(email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
+        Auth.auth().signIn(withEmail: email, password: password) { [weak self] result, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
                 return
             }
             
-            let newUser = User(email: email, password: password, firstName: firstName, lastName: lastName)
-            self.registeredUsers.append(newUser)
-            self.currentUser = newUser
-            self.isAuthenticated = true
-            completion(true)
+            if let user = result?.user {
+                self?.fetchUserData(uid: user.uid)
+                completion(true, nil)
+            }
+        }
+    }
+    
+    func register(firstName: String, lastName: String, email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
+        Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
+                return
+            }
+            
+            guard let user = result?.user else {
+                completion(false, "Error al crear el usuario")
+                return
+            }
+            
+            let userData = [
+                "firstName": firstName,
+                "lastName": lastName,
+                "email": email,
+                "createdAt": Timestamp(date: Date())
+            ] as [String : Any]
+            
+            self?.db.collection("users").document(user.uid).setData(userData) { error in
+                if let error = error {
+                    print("Error guardando datos del usuario: \(error.localizedDescription)")
+                    completion(false, error.localizedDescription)
+                } else {
+                    self?.fetchUserData(uid: user.uid)
+                    completion(true, nil)
+                }
+            }
+        }
+    }
+    
+    private func fetchUserData(uid: String) {
+        db.collection("users").document(uid).getDocument { [weak self] snapshot, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("Error obteniendo datos del usuario: \(error.localizedDescription)")
+                // Aún permitimos el login aunque falle la carga de datos adicionales
+                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
+                self.isAuthenticated = true
+                return
+            }
+            
+            if let snapshot = snapshot, snapshot.exists {
+                let data = snapshot.data()
+                let firstName = data?["firstName"] as? String
+                let lastName = data?["lastName"] as? String
+                let email = data?["email"] as? String
+                
+                self.currentUser = User(uid: uid, email: email, firstName: firstName, lastName: lastName)
+                self.isAuthenticated = true
+            } else {
+                // Si no existe el documento, creamos uno básico
+                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
+                self.isAuthenticated = true
+            }
         }
     }
     
     func logout() {
-        isAuthenticated = false
-        currentUser = nil
+        do {
+            try Auth.auth().signOut()
+            isAuthenticated = false
+            currentUser = nil
+        } catch {
+            print("Error al cerrar sesión: \(error.localizedDescription)")
+        }
+    }
+    
+    // Métodos para autenticación con redes sociales (opcional)
+    func signInWithGoogle(completion: @escaping (Bool, String?) -> Void) {
+        // Implementar lógica para Google Sign-In
+    }
+    
+    func signInWithApple(completion: @escaping (Bool, String?) -> Void) {
+        // Implementar lógica para Apple Sign-In
     }
 }
