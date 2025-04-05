@@ -26,7 +26,7 @@ struct CambiarBebeView: View {
         BabyProfile(name: "Ethan", imageName: "baby1", peso: "1.6 kg", estatura: "41 cm", imc: "10"),
         BabyProfile(name: "Liam", imageName: "baby2", peso: "2.1 kg", estatura: "45 cm", imc: "11"),
         BabyProfile(name: "Emma", imageName: "baby3", peso: "1.8 kg", estatura: "43 cm", imc: "9"),
-        BabyProfile(name: "Sophia", imageName: "baby4", peso: "2.0 kg", estatura: "44 cm", imc: "10")
+        BabyProfile(name: "Sofia", imageName: "baby4", peso: "2.0 kg", estatura: "44 cm", imc: "10")
     ]
     
     @State private var navigationPath = NavigationPath()

@@ -128,12 +128,23 @@ struct ChatView: View {
         messageText = ""
         isTyping = true
         
+        let prompt = """
+        Proporciona una observación concisa que responda a las dudas del tutor acerca del bebé. 
+        Sé específico, amigable con el lenguaje del usuario y da recomendaciones si es necesario.
+        Tomando en cuenta estos datos de seguimiento del bebé:
+        - Edad: 6 meses
+        - Estatura: 41cm
+        - Peso: 1.6kg
+        - IMC: 10
+        Y no respondas nada que no conozcas. Solo respondes a preguntas relacionadas con el desarrollo del bebé (le recordarás al usuario cuál es tu papel si te llegara a pedir otro tipo de consulta) y si es necesario le recordarás al usuario que siempre deberá consultar a su pediatra.
+        """
+        
         let requestBody: [String: Any] = [
             "model": "llama-3.1-8b-instant",
-            "temperature": 0.6,
+            "temperature": 0.7,
             "max_completion_tokens": 1024,
             "top_p": 1,
-            "messages": messages.map { ["role": $0.isUser ? "user" : "Car assistant", "content": $0.text] }
+            "messages": messages.map { ["role": $0.isUser ? "user" : "assistant", "content": prompt] }
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else { return }

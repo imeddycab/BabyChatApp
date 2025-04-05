@@ -142,6 +142,7 @@ struct AjustesView: View {
                             .sheet(isPresented: $showNotifications) {
                                 NotificationsView()
                                     .presentationCornerRadius(30)
+                                    .padding(.vertical)
                             }
                             
                             Divider()
@@ -173,6 +174,7 @@ struct AjustesView: View {
                             .sheet(isPresented: $showExportData) {
                                 ExportDataView()
                                     .presentationCornerRadius(30)
+                                    .padding(.vertical)
                             }
                         }
                         .padding(.vertical, 5)

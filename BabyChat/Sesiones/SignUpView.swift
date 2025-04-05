@@ -283,8 +283,6 @@ struct SignUpView: View {
         }
     }
 
-    // ... (resto del código se mantiene igual)
-    
     private func simulateSocialSignUp() {
         isLoading = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {

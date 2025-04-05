@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "E97B7D3B-C1DF-406D-B03B-1E4A47C294EA",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:BabyChat.xcodeproj",
+      "identifier" : "64C936522D89C13E00084E3F",
+      "name" : "BabyChat"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:BabyChat.xcodeproj",
+        "identifier" : "64C936622D89C13F00084E3F",
+        "name" : "BabyChatTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:BabyChat.xcodeproj",
+        "identifier" : "64C9366C2D89C13F00084E3F",
+        "name" : "BabyChatUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

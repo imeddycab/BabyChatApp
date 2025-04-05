@@ -31,6 +31,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6486A1CD2D9ED75F00CF70E6 /* BabyChat.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = BabyChat.xctestplan; sourceTree = "<group>"; };
 		64C936532D89C13E00084E3F /* BabyChat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BabyChat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		64C936632D89C13F00084E3F /* BabyChatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyChatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		64C9366D2D89C13F00084E3F /* BabyChatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyChatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -99,6 +100,7 @@
 		64C9364A2D89C13E00084E3F = {
 			isa = PBXGroup;
 			children = (
+				6486A1CD2D9ED75F00CF70E6 /* BabyChat.xctestplan */,
 				64C936552D89C13E00084E3F /* BabyChat */,
 				64C936662D89C13F00084E3F /* BabyChatTests */,
 				64C936702D89C13F00084E3F /* BabyChatUITests */,
@@ -487,6 +489,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6G8P6SS76D;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				MARKETING_VERSION = 1.0;
@@ -505,6 +508,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6G8P6SS76D;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				MARKETING_VERSION = 1.0;
@@ -522,6 +526,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6G8P6SS76D;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.babychatinc.BabyChatUITests;
@@ -538,6 +543,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 6G8P6SS76D;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.babychatinc.BabyChatUITests;
