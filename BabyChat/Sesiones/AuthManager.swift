@@ -7,7 +7,7 @@
 
 import Foundation
 import FirebaseAuth
-import FirebaseFirestore
+import FirebaseDatabase
 
 class AuthManager: ObservableObject {
     static let shared = AuthManager()
@@ -18,13 +18,20 @@ class AuthManager: ObservableObject {
     struct User {
         let uid: String
         let email: String?
-        let firstName: String?
-        let lastName: String?
+        let nombres: String?
+        let primerApellido: String?
+        let rol: String
+        let fechaCreacion: Date?
     }
     
-    private var db = Firestore.firestore()
+    private var dbRef: DatabaseReference
     
     init() {
+        self.dbRef = Database.database().reference()
+        setupAuthListener()
+    }
+    
+    private func setupAuthListener() {
         Auth.auth().addStateDidChangeListener { [weak self] (_, user) in
             if let user = user {
                 self?.fetchUserData(uid: user.uid)
@@ -42,14 +49,17 @@ class AuthManager: ObservableObject {
                 return
             }
             
-            if let user = result?.user {
-                self?.fetchUserData(uid: user.uid)
-                completion(true, nil)
+            guard let user = result?.user else {
+                completion(false, "No se pudo obtener información del usuario")
+                return
             }
+            
+            self?.fetchUserData(uid: user.uid)
+            completion(true, nil)
         }
     }
     
-    func register(firstName: String, lastName: String, email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
+    func register(nombres: String, primerApellido: String, email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             if let error = error {
                 completion(false, error.localizedDescription)
@@ -57,21 +67,27 @@ class AuthManager: ObservableObject {
             }
             
             guard let user = result?.user else {
-                completion(false, "Error al crear el usuario")
+                completion(false, "Error al crear el usuario en Authentication")
                 return
             }
             
-            let userData = [
-                "firstName": firstName,
-                "lastName": lastName,
+            let userData: [String: Any] = [
+                "nombres": nombres,
+                "primer_apellido": primerApellido,
                 "email": email,
-                "createdAt": Timestamp(date: Date())
-            ] as [String : Any]
+                "rol": "padre",
+                "creacion": ServerValue.timestamp(),
+                "genero": "", // Campos adicionales según tu estructura
+                "nacimiento": "",
+                "fotoperfil": ""
+            ]
             
-            self?.db.collection("users").document(user.uid).setData(userData) { error in
+            // Guardar en Realtime Database
+            self?.dbRef.child("usuarios").child(user.uid).setValue(userData) { error, _ in
                 if let error = error {
-                    print("Error guardando datos del usuario: \(error.localizedDescription)")
-                    completion(false, error.localizedDescription)
+                    // Si falla, eliminamos el usuario creado en Auth para mantener consistencia
+                    user.delete { _ in }
+                    completion(false, "Error al guardar en Realtime Database: \(error.localizedDescription)")
                 } else {
                     self?.fetchUserData(uid: user.uid)
                     completion(true, nil)
@@ -81,29 +97,50 @@ class AuthManager: ObservableObject {
     }
     
     private func fetchUserData(uid: String) {
-        db.collection("users").document(uid).getDocument { [weak self] snapshot, error in
+        dbRef.child("usuarios").child(uid).observeSingleEvent(of: .value) { [weak self] snapshot in
             guard let self = self else { return }
             
-            if let error = error {
-                print("Error obteniendo datos del usuario: \(error.localizedDescription)")
-                // Aún permitimos el login aunque falle la carga de datos adicionales
-                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
-                self.isAuthenticated = true
+            if !snapshot.exists() {
+                // Si no existe, creamos un registro básico
+                self.createBasicUserRecord(uid: uid)
                 return
             }
             
-            if let snapshot = snapshot, snapshot.exists {
-                let data = snapshot.data()
-                let firstName = data?["firstName"] as? String
-                let lastName = data?["lastName"] as? String
-                let email = data?["email"] as? String
-                
-                self.currentUser = User(uid: uid, email: email, firstName: firstName, lastName: lastName)
-                self.isAuthenticated = true
-            } else {
-                // Si no existe el documento, creamos uno básico
-                self.currentUser = User(uid: uid, email: Auth.auth().currentUser?.email, firstName: nil, lastName: nil)
-                self.isAuthenticated = true
+            guard let value = snapshot.value as? [String: Any] else {
+                self.isAuthenticated = false
+                return
+            }
+            
+            let timestamp = value["creacion"] as? TimeInterval ?? 0
+            let fechaCreacion = Date(timeIntervalSince1970: timestamp / 1000)
+            
+            self.currentUser = User(
+                uid: uid,
+                email: value["email"] as? String,
+                nombres: value["nombres"] as? String,
+                primerApellido: value["primer_apellido"] as? String,
+                rol: value["rol"] as? String ?? "padre",
+                fechaCreacion: fechaCreacion
+            )
+            
+            self.isAuthenticated = true
+        }
+    }
+    
+    private func createBasicUserRecord(uid: String) {
+        guard let currentAuthUser = Auth.auth().currentUser else { return }
+        
+        let userData: [String: Any] = [
+            "nombres": "",
+            "primer_apellido": "",
+            "email": currentAuthUser.email ?? "",
+            "rol": "padre",
+            "creacion": ServerValue.timestamp()
+        ]
+        
+        dbRef.child("usuarios").child(uid).setValue(userData) { [weak self] error, _ in
+            if error == nil {
+                self?.fetchUserData(uid: uid)
             }
         }
     }
@@ -116,14 +153,5 @@ class AuthManager: ObservableObject {
         } catch {
             print("Error al cerrar sesión: \(error.localizedDescription)")
         }
-    }
-    
-    // Métodos para autenticación con redes sociales (opcional)
-    func signInWithGoogle(completion: @escaping (Bool, String?) -> Void) {
-        // Implementar lógica para Google Sign-In
-    }
-    
-    func signInWithApple(completion: @escaping (Bool, String?) -> Void) {
-        // Implementar lógica para Apple Sign-In
     }
 }

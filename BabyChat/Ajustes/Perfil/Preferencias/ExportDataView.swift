@@ -42,31 +42,31 @@ struct ExportDataView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Botón de regreso
-                    HStack {
-                        Button(action: {
-                            presentationMode.wrappedValue.dismiss()
-                        }) {
-                            HStack {
-                                Spacer()
-                                Text("Exportar datos")
-                                    .foregroundColor(.black)
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "xmark")
-                                    .foregroundColor(.purple)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(14)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(30)
+                // Botón de regreso
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        HStack {
+                            Spacer()
+                            Text("Exportar datos")
+                                .foregroundColor(.black)
+                                .fontWeight(.medium)
+                            Spacer()
+                            Image(systemName: "xmark")
+                                .foregroundColor(.purple)
                         }
-                        Spacer()
+                        .frame(maxWidth: .infinity)
+                        .padding(14)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(30)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                
+                VStack(spacing: 20) {
                     // Contenido principal
                     VStack(spacing: 15) {
                         // Selector de bebé
@@ -87,7 +87,7 @@ struct ExportDataView: View {
                         }
                         .padding(.horizontal)
                         
-                        Text("Exportar datos de \(babyData[selectedBaby]?.name ?? selectedBaby)")
+                        Text("Datos de \(babyData[selectedBaby]?.name ?? selectedBaby)")
                             .font(.title2)
                             .fontWeight(.bold)
                         

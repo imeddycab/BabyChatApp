@@ -175,6 +175,7 @@ struct AjustesView: View {
                                 ExportDataView()
                                     .presentationCornerRadius(30)
                                     .padding(.vertical)
+                                    .ignoresSafeArea(.all)
                             }
                         }
                         .padding(.vertical, 5)

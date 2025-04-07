@@ -36,7 +36,7 @@ struct PerfilInfoView: View {
             ("Segundo apellido", editedSecondLastName),
             ("Fecha de nacimiento", dateFormatter.string(from: editedBirthDate)),
             ("Género", editedGender.rawValue),
-            ("Email", "e***@***.com")
+            ("Email", "e***@m**.com")
         ]
     }
     

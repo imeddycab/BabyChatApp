@@ -268,8 +268,8 @@ struct SignUpView: View {
         isLoading = true
         
         AuthManager.shared.register(
-            firstName: firstName,
-            lastName: lastName,
+            nombres: firstName,
+            primerApellido: lastName,
             email: email,
             password: password
         ) { success, errorMessage in
