@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct AjustesView: View {
+    @ObservedObject private var authManager = AuthManager.shared
     @State private var selectedBaby: String? = nil
     @State private var viewBaby = false
+    @State private var bbShowAddBabySheet = false
     @State private var showNotifications = false
     @State private var showExportData = false
     @State private var showAppInfo = false
@@ -23,7 +25,7 @@ struct AjustesView: View {
         ScrollView {
             VStack(spacing: 0) {
                 // Encabezado
-                Text("¡Hola, Emily!")
+                Text("¡Hola, \(authManager.currentUser?.nombres ?? "Usuario")!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -51,7 +53,7 @@ struct AjustesView: View {
                             
                             Spacer()
                             
-                            NavigationLink(destination: PerfilInfoView()) {
+                            NavigationLink(destination: PerfilInfoView().environmentObject(AuthManager.shared)) {
                                 Image(systemName: "chevron.right.circle.fill")
                                     .font(.system(size: 25, weight: .bold))
                                     .foregroundColor(.purple)
@@ -85,7 +87,7 @@ struct AjustesView: View {
                             }
                             
                             Button(action: {
-                                // Acción para agregar bebé
+                                bbShowAddBabySheet = true
                             }) {
                                 HStack {
                                     Spacer()
@@ -99,6 +101,15 @@ struct AjustesView: View {
                                     Spacer()
                                 }
                                 .padding(.vertical, 8)
+                            }
+                            .sheet(isPresented: $bbShowAddBabySheet) {
+                                RegistroBebeView(bbOnSaveComplete: {
+                                    // Aquí manejas la lógica para guardar el nuevo bebé
+                                    // Por ejemplo:
+                                    // babiesList.append(newBaby)
+                                    // selectedBaby = newBaby.name
+                                })
+                                .presentationCornerRadius(30)
                             }
                         }
                         .padding(.vertical, 5)
@@ -304,7 +315,7 @@ struct AjustesView: View {
                     
                     // Footer
                     HStack {
-                        Text("Made for")
+                        Text("Made by")
                             .font(.caption)
                             .foregroundColor(.gray)
                         Text("The BabyChat Team")

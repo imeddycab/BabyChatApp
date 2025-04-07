@@ -10,6 +10,7 @@ import SwiftUI
 struct SignUpView: View {
     @State private var firstName = ""
     @State private var lastName = ""
+    @State private var secondLastName = ""
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -48,7 +49,7 @@ struct SignUpView: View {
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
                     
-                    TextField("Apellidos", text: $lastName)
+                    TextField("Primer apellido", text: $lastName)
                         .padding(12)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(30)
@@ -56,6 +57,15 @@ struct SignUpView: View {
                             RoundedRectangle(cornerRadius: 30)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
+                    TextField("Segundo apellido (opcional)", text: $secondLastName)
+                        .padding(12)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(30)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                        .padding(.horizontal, 25)
                 }
                 .padding(.horizontal, 25)
                 
@@ -270,6 +280,7 @@ struct SignUpView: View {
         AuthManager.shared.register(
             nombres: firstName,
             primerApellido: lastName,
+            segundoApellido: secondLastName,
             email: email,
             password: password
         ) { success, errorMessage in

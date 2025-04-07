@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChatView: View {
     @State private var messageText: String = ""
+    @FocusState private var isTextFieldFocused: Bool
     @State private var messages: [(text: String, isUser: Bool)] = [
         ("¡Hola! ¿Cómo puedo ayudarte?", false)
     ]
@@ -90,6 +91,7 @@ struct ChatView: View {
                     .padding(12)
                     .background(Color(.systemGray6))
                     .clipShape(Capsule())
+                    .focused($isTextFieldFocused)
 
                 Button(action: sendMessage) {
                     Text("Enviar")
@@ -123,6 +125,10 @@ struct ChatView: View {
     
     func sendMessage() {
         guard !messageText.isEmpty else { return }
+        
+        // Cierra el teclado
+        isTextFieldFocused = false
+        
         let userMessage = messageText
         messages.append((text: userMessage, isUser: true))
         messageText = ""
@@ -130,12 +136,15 @@ struct ChatView: View {
         
         let prompt = """
         Proporciona una observación concisa que responda a las dudas del tutor acerca del bebé. 
+        
         Sé específico, amigable con el lenguaje del usuario y da recomendaciones si es necesario.
-        Tomando en cuenta estos datos de seguimiento del bebé:
+        
+        Si el usuario lo pide, toma en cuenta estos datos de seguimiento del bebé:
         - Edad: 6 meses
         - Estatura: 41cm
         - Peso: 1.6kg
         - IMC: 10
+        
         Y no respondas nada que no conozcas. Solo respondes a preguntas relacionadas con el desarrollo del bebé (le recordarás al usuario cuál es tu papel si te llegara a pedir otro tipo de consulta) y si es necesario le recordarás al usuario que siempre deberá consultar a su pediatra.
         """
         

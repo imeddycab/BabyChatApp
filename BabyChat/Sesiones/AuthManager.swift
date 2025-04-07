@@ -20,11 +20,15 @@ class AuthManager: ObservableObject {
         let email: String?
         let nombres: String?
         let primerApellido: String?
+        let segundoApellido: String?
+        let fechaNacimiento: Date?
+        let genero: String?
         let rol: String
         let fechaCreacion: Date?
     }
     
     private var dbRef: DatabaseReference
+    private var userDataHandle: DatabaseHandle?
     
     init() {
         self.dbRef = Database.database().reference()
@@ -59,7 +63,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    func register(nombres: String, primerApellido: String, email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
+    func register(nombres: String, primerApellido: String, segundoApellido: String = "", email: String, password: String, completion: @escaping (Bool, String?) -> Void) {
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             if let error = error {
                 completion(false, error.localizedDescription)
@@ -74,18 +78,17 @@ class AuthManager: ObservableObject {
             let userData: [String: Any] = [
                 "nombres": nombres,
                 "primer_apellido": primerApellido,
+                "segundo_apellido": segundoApellido,
                 "email": email,
                 "rol": "padre",
                 "creacion": ServerValue.timestamp(),
-                "genero": "", // Campos adicionales según tu estructura
+                "genero": "",
                 "nacimiento": "",
                 "fotoperfil": ""
             ]
             
-            // Guardar en Realtime Database
             self?.dbRef.child("usuarios").child(user.uid).setValue(userData) { error, _ in
                 if let error = error {
-                    // Si falla, eliminamos el usuario creado en Auth para mantener consistencia
                     user.delete { _ in }
                     completion(false, "Error al guardar en Realtime Database: \(error.localizedDescription)")
                 } else {
@@ -97,33 +100,46 @@ class AuthManager: ObservableObject {
     }
     
     private func fetchUserData(uid: String) {
-        dbRef.child("usuarios").child(uid).observeSingleEvent(of: .value) { [weak self] snapshot in
+        // Eliminar cualquier observador previo
+        if let handle = userDataHandle {
+            dbRef.child("usuarios").child(uid).removeObserver(withHandle: handle)
+        }
+        
+        // Observar cambios en tiempo real
+        userDataHandle = dbRef.child("usuarios").child(uid).observe(.value) { [weak self] snapshot in
             guard let self = self else { return }
             
-            if !snapshot.exists() {
+            // Verificar si el snapshot existe y tiene datos
+            guard snapshot.exists(), let value = snapshot.value as? [String: Any] else {
                 // Si no existe, creamos un registro básico
                 self.createBasicUserRecord(uid: uid)
-                return
-            }
-            
-            guard let value = snapshot.value as? [String: Any] else {
-                self.isAuthenticated = false
                 return
             }
             
             let timestamp = value["creacion"] as? TimeInterval ?? 0
             let fechaCreacion = Date(timeIntervalSince1970: timestamp / 1000)
             
-            self.currentUser = User(
-                uid: uid,
-                email: value["email"] as? String,
-                nombres: value["nombres"] as? String,
-                primerApellido: value["primer_apellido"] as? String,
-                rol: value["rol"] as? String ?? "padre",
-                fechaCreacion: fechaCreacion
-            )
+            // Extraer los campos
+            let segundoApellido = value["segundo_apellido"] as? String ?? ""
+            let genero = value["genero"] as? String ?? "No especificado"
+            let fechaNacimientoTimestamp = value["nacimiento"] as? TimeInterval ?? 0
+            let fechaNacimiento = fechaNacimientoTimestamp > 0 ? Date(timeIntervalSince1970: fechaNacimientoTimestamp) : nil
             
-            self.isAuthenticated = true
+            DispatchQueue.main.async {
+                self.currentUser = User(
+                    uid: uid,
+                    email: value["email"] as? String,
+                    nombres: value["nombres"] as? String,
+                    primerApellido: value["primer_apellido"] as? String,
+                    segundoApellido: segundoApellido,
+                    fechaNacimiento: fechaNacimiento,
+                    genero: genero,
+                    rol: value["rol"] as? String ?? "padre",
+                    fechaCreacion: fechaCreacion
+                )
+                
+                self.isAuthenticated = true
+            }
         }
     }
     
@@ -133,8 +149,11 @@ class AuthManager: ObservableObject {
         let userData: [String: Any] = [
             "nombres": "",
             "primer_apellido": "",
+            "segundo_apellido": "",
             "email": currentAuthUser.email ?? "",
             "rol": "padre",
+            "genero": "No especificado",
+            "nacimiento": 0,
             "creacion": ServerValue.timestamp()
         ]
         
@@ -145,7 +164,15 @@ class AuthManager: ObservableObject {
         }
     }
     
+    func cleanupObservers() {
+        if let handle = userDataHandle, let uid = currentUser?.uid {
+            dbRef.child("usuarios").child(uid).removeObserver(withHandle: handle)
+            userDataHandle = nil
+        }
+    }
+    
     func logout() {
+        cleanupObservers()
         do {
             try Auth.auth().signOut()
             isAuthenticated = false
@@ -153,5 +180,10 @@ class AuthManager: ObservableObject {
         } catch {
             print("Error al cerrar sesión: \(error.localizedDescription)")
         }
+    }
+    
+    deinit {
+        cleanupObservers()
+        print("AuthManager se está liberando de memoria")
     }
 }

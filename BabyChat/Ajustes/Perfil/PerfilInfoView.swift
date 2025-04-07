@@ -7,14 +7,9 @@
 
 import SwiftUI
 
-enum Gender: String, CaseIterable {
-    case female = "Femenino"
-    case male = "Masculino"
-    case unspecified = "No especificado"
-}
-
 struct PerfilInfoView: View {
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var authManager: AuthManager
     @State private var showEditProfileSheet = false
     @State private var showClearChatsConfirmation = false
     @State private var showDeleteBabiesConfirmation = false
@@ -26,6 +21,16 @@ struct PerfilInfoView: View {
     @State private var editedBirthDate = Date()
     @State private var editedGender: Gender = .female
     
+    // Inicializador para establecer los valores iniciales
+    init() {
+        let authManager = AuthManager.shared
+        _editedName = State(initialValue: authManager.currentUser?.nombres ?? "")
+        _editedLastName = State(initialValue: authManager.currentUser?.primerApellido ?? "")
+        _editedSecondLastName = State(initialValue: authManager.currentUser?.segundoApellido ?? "")
+        _editedBirthDate = State(initialValue: Date()) // No hay fecha de nacimiento en AuthManager, usamos fecha actual
+        _editedGender = State(initialValue: .unspecified) // No hay género en AuthManager, usamos no especificado
+    }
+    
     var accountDetails: [(String, String)] {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "dd/MM/yyyy"
@@ -36,7 +41,7 @@ struct PerfilInfoView: View {
             ("Segundo apellido", editedSecondLastName),
             ("Fecha de nacimiento", dateFormatter.string(from: editedBirthDate)),
             ("Género", editedGender.rawValue),
-            ("Email", "e***@m**.com")
+            ("Email", authManager.currentUser?.email?.maskedEmail() ?? "No disponible")
         ]
     }
     
@@ -493,36 +498,22 @@ struct EditProfileView: View {
     }
 }
 
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var selectedImage: UIImage?
-    @Environment(\.presentationMode) var presentationMode
-    
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.delegate = context.coordinator
-        picker.sourceType = .photoLibrary
-        return picker
-    }
-    
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+// Extensión para enmascarar el email
+extension String {
+    func maskedEmail() -> String {
+        guard self.contains("@") else { return self }
+        let components = self.components(separatedBy: "@")
+        guard components.count == 2 else { return self }
         
-        init(_ parent: ImagePicker) {
-            self.parent = parent
-        }
+        let username = components[0]
+        let domainComponents = components[1].components(separatedBy: ".")
         
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let uiImage = info[.originalImage] as? UIImage {
-                parent.selectedImage = uiImage
-            }
-            parent.presentationMode.wrappedValue.dismiss()
-        }
+        guard !username.isEmpty, domainComponents.count >= 2 else { return self }
+        
+        let maskedUsername = String(username.prefix(1)) + "***" + (username.count > 1 ? String(username.suffix(1)) : "")
+        let maskedDomain = String(domainComponents[0].prefix(1)) + "***" + "." + domainComponents[1]
+        
+        return maskedUsername + "@" + maskedDomain
     }
 }
 
