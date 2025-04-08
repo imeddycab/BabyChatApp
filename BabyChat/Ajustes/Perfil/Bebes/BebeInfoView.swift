@@ -4,34 +4,71 @@
 //
 
 import SwiftUI
+import FirebaseDatabase
+import FirebaseAuth
 
 struct BebeInfoView: View {
     @Environment(\.presentationMode) var presentationMode
+    let baby: AuthManager.Baby // Recibir el objeto Baby
+    
     @State private var showClearBabyChatsConfirmation = false
     @State private var showDeleteTheBabyConfirmation = false
     @State private var showEditProfileSheet = false
     @State private var selectedImage: UIImage?
     
-    // Datos editables
-    @State private var babyName = "Ethan"
-    @State private var lastName = "Islas"
-    @State private var secondLastName = "-"
-    @State private var birthDate = Date()
-    @State private var gender: Gender = .male
-    @State private var disabilityNotes = ""
-    @State private var allergyNotes = ""
-    @State private var diseaseNotes = ""
+    // Datos editables (inicializados con los datos del bebé)
+    @State private var babyName: String
+    @State private var lastName: String
+    @State private var secondLastName: String
+    @State private var birthDate: Date
+    @State private var gender: Gender
+    @State private var disabilityNotes: String
+    @State private var allergyNotes: String
+    @State private var diseaseNotes: String
     
     // Valores originales para restaurar al cancelar
     @State private var originalImage: UIImage?
-    @State private var originalName = "Ethan"
-    @State private var originalLastName = "Islas"
-    @State private var originalSecondLastName = "-"
-    @State private var originalBirthDate = Date()
-    @State private var originalGender: Gender = .male
-    @State private var originalDisabilityNotes = ""
-    @State private var originalAllergyNotes = ""
-    @State private var originalDiseaseNotes = ""
+    @State private var originalName: String
+    @State private var originalLastName: String
+    @State private var originalSecondLastName: String
+    @State private var originalBirthDate: Date
+    @State private var originalGender: Gender
+    @State private var originalDisabilityNotes: String
+    @State private var originalAllergyNotes: String
+    @State private var originalDiseaseNotes: String
+    
+    // Inicializador para recibir el bebé
+    init(baby: AuthManager.Baby) {
+        self.baby = baby
+        
+        // Convertir la fecha de nacimiento de String a Date
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM-yyyy"
+        let date = dateFormatter.date(from: baby.nacimiento) ?? Date()
+        
+        // Convertir el género de String a enum Gender
+        let babyGender: Gender = baby.genero == "F" ? .female : .male
+        
+        // Inicializar los estados con los datos del bebé
+        _babyName = State(initialValue: baby.nombres)
+        _lastName = State(initialValue: baby.primerApellido)
+        _secondLastName = State(initialValue: baby.segundoApellido)
+        _birthDate = State(initialValue: date)
+        _gender = State(initialValue: babyGender)
+        _disabilityNotes = State(initialValue: baby.discapacidad)
+        _allergyNotes = State(initialValue: baby.alergias)
+        _diseaseNotes = State(initialValue: baby.enfermedades)
+        
+        // Inicializar los valores originales
+        _originalName = State(initialValue: baby.nombres)
+        _originalLastName = State(initialValue: baby.primerApellido)
+        _originalSecondLastName = State(initialValue: baby.segundoApellido)
+        _originalBirthDate = State(initialValue: date)
+        _originalGender = State(initialValue: babyGender)
+        _originalDisabilityNotes = State(initialValue: baby.discapacidad)
+        _originalAllergyNotes = State(initialValue: baby.alergias)
+        _originalDiseaseNotes = State(initialValue: baby.enfermedades)
+    }
     
     private var formattedBirthDate: String {
         let formatter = DateFormatter()
@@ -106,25 +143,37 @@ struct BebeInfoView: View {
                         originalGender: $originalGender,
                         originalDisabilityNotes: $originalDisabilityNotes,
                         originalAllergyNotes: $originalAllergyNotes,
-                        originalDiseaseNotes: $originalDiseaseNotes
+                        originalDiseaseNotes: $originalDiseaseNotes,
+                        babyId: baby.id,
+                        userId: Auth.auth().currentUser?.uid ?? ""
                     )
                 }
                 
                 // Foto de perfil del bebé
-                Image(systemName: selectedImage == nil ? "person.fill" : "")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.purple)
-                    .clipShape(Circle())
-                    .overlay(
-                        selectedImage.map { image in
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .clipShape(Circle())
-                        }
-                    )
+                if let fotoBase64 = baby.fotoperfil,
+                   let imageData = Data(base64Encoded: fotoBase64),
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: selectedImage == nil ? "person.fill" : "")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.purple)
+                        .clipShape(Circle())
+                        .overlay(
+                            selectedImage.map { image in
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .clipShape(Circle())
+                            }
+                        )
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -395,6 +444,58 @@ struct EditBabyProfileView: View {
     @Binding var originalDiseaseNotes: String
     
     @State private var showImagePicker = false
+    @State private var isSaving = false
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    
+    let babyId: String
+    let userId: String
+    
+    init(
+        isPresented: Binding<Bool>,
+        selectedImage: Binding<UIImage?>,
+        babyName: Binding<String>,
+        lastName: Binding<String>,
+        secondLastName: Binding<String>,
+        birthDate: Binding<Date>,
+        gender: Binding<Gender>,
+        disabilityNotes: Binding<String>,
+        allergyNotes: Binding<String>,
+        diseaseNotes: Binding<String>,
+        originalImage: Binding<UIImage?>,
+        originalName: Binding<String>,
+        originalLastName: Binding<String>,
+        originalSecondLastName: Binding<String>,
+        originalBirthDate: Binding<Date>,
+        originalGender: Binding<Gender>,
+        originalDisabilityNotes: Binding<String>,
+        originalAllergyNotes: Binding<String>,
+        originalDiseaseNotes: Binding<String>,
+        babyId: String,
+        userId: String
+    ) {
+        self._isPresented = isPresented
+        self._selectedImage = selectedImage
+        self._babyName = babyName
+        self._lastName = lastName
+        self._secondLastName = secondLastName
+        self._birthDate = birthDate
+        self._gender = gender
+        self._disabilityNotes = disabilityNotes
+        self._allergyNotes = allergyNotes
+        self._diseaseNotes = diseaseNotes
+        self._originalImage = originalImage
+        self._originalName = originalName
+        self._originalLastName = originalLastName
+        self._originalSecondLastName = originalSecondLastName
+        self._originalBirthDate = originalBirthDate
+        self._originalGender = originalGender
+        self._originalDisabilityNotes = originalDisabilityNotes
+        self._originalAllergyNotes = originalAllergyNotes
+        self._originalDiseaseNotes = originalDiseaseNotes
+        self.babyId = babyId
+        self.userId = userId
+    }
     
     var body: some View {
         NavigationView {
@@ -472,13 +573,72 @@ struct EditBabyProfileView: View {
                     isPresented = false
                 }
                 .foregroundColor(.gray),
-                trailing: Button("Guardar") {
-                    isPresented = false
+                trailing: Group {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Guardar") {
+                            saveBabyProfileChanges()
+                        }
+                        .foregroundColor(.purple)
+                    }
                 }
                 .foregroundColor(.purple)
+                .disabled(isSaving)
             )
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(selectedImage: $selectedImage)
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Edición de perfil"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
+        }
+    }
+    
+    private func saveBabyProfileChanges() {
+        isSaving = true
+        
+        // Convertir imagen a base64 si existe
+        var photoBase64 = ""
+        if let image = selectedImage, let imageData = image.jpegData(compressionQuality: 0.5) {
+            photoBase64 = imageData.base64EncodedString()
+        }
+        
+        // Formatear fecha de nacimiento como "dd-MM-yyyy"
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM-yyyy"
+        let birthDateString = dateFormatter.string(from: birthDate)
+        
+        // Formatear género como "M" o "F"
+        let genero = gender == .female ? "F" : "M"
+        
+        // Crear diccionario con los datos actualizados
+        let updatedData: [String: Any] = [
+            "nombres": babyName,
+            "primer_apellido": lastName,
+            "segundo_apellido": secondLastName,
+            "genero": genero,
+            "nacimiento": birthDateString,
+            "discapacidad": disabilityNotes,
+            "alergias": allergyNotes,
+            "enfermedades": diseaseNotes,
+            "fotoperfil": photoBase64
+        ]
+        
+        // Referencia a la base de datos
+        let ref = Database.database().reference()
+        let babyRef = ref.child("usuarios").child(userId).child("bebes").child(babyId)
+        
+        // Guardar datos
+        babyRef.updateChildValues(updatedData) { error, _ in
+            isSaving = false
+            if let error = error {
+                alertMessage = "Error al guardar: \(error.localizedDescription)"
+                showAlert = true
+            } else {
+                alertMessage = "Perfil del bebé actualizado exitosamente"
+                showAlert = true
+                isPresented = false
             }
         }
     }
@@ -502,6 +662,19 @@ struct InfoRow: View {
 
 struct BebeInfoView_Previews: PreviewProvider {
     static var previews: some View {
-        BebeInfoView()
+        let sampleBaby = AuthManager.Baby(
+            id: "1",
+            nombres: "Ethan",
+            primerApellido: "Islas",
+            segundoApellido: "Gómez",
+            apodo: "Ethy",
+            genero: "M",
+            nacimiento: "18-10-2024",
+            discapacidad: "",
+            alergias: "Alergia a la penicilina",
+            enfermedades: "",
+            fotoperfil: nil
+        )
+        BebeInfoView(baby: sampleBaby)
     }
 }

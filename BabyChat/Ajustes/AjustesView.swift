@@ -74,16 +74,14 @@ struct AjustesView: View {
                             .padding(.horizontal, 20)
                         
                         VStack(spacing: 12) {
-                            BabyItem(name: "Ethan", isSelected: selectedBaby == "Ethan") {
-                                selectedBaby = "Ethan"
-                            }
-                            
-                            BabyItem(name: "Lily", isSelected: selectedBaby == "Lily") {
-                                selectedBaby = "Lily"
-                            }
-                            
-                            BabyItem(name: "Alex", isSelected: selectedBaby == "Alex") {
-                                selectedBaby = "Alex"
+                            ForEach(authManager.babies, id: \.id) { baby in
+                                BabyItem(
+                                    baby: baby, // Pasar el objeto Baby completo
+                                    isSelected: selectedBaby == baby.id,
+                                    action: {
+                                        selectedBaby = baby.id
+                                    }
+                                )
                             }
                             
                             Button(action: {
@@ -104,10 +102,10 @@ struct AjustesView: View {
                             }
                             .sheet(isPresented: $bbShowAddBabySheet) {
                                 RegistroBebeView(bbOnSaveComplete: {
-                                    // Aquí manejas la lógica para guardar el nuevo bebé
-                                    // Por ejemplo:
-                                    // babiesList.append(newBaby)
-                                    // selectedBaby = newBaby.name
+                                    // Actualizar la lista de bebés después de agregar uno nuevo
+                                    if let uid = authManager.currentUser?.uid {
+                                        authManager.fetchUserBabies(uid: uid)
+                                    }
                                 })
                                 .presentationCornerRadius(30)
                             }
@@ -388,7 +386,7 @@ struct AppInfoView: View {
 
 // Componente para elemento de bebé
 struct BabyItem: View {
-    var name: String
+    var baby: AuthManager.Baby // Cambiar para recibir el objeto Baby completo
     var isSelected: Bool
     var action: () -> Void
     @State private var viewBaby = false
@@ -396,13 +394,13 @@ struct BabyItem: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(name)
+                Text(baby.nombres) // Mostrar el nombre del bebé
                     .font(.subheadline)
                 
                 Spacer()
                 
                 HStack(spacing: 15) {
-                    // Botón para Cambio de Bebé
+                    // Botón para ver el perfil del bebé
                     Button(action: {
                         viewBaby = true
                     }) {
@@ -418,7 +416,7 @@ struct BabyItem: View {
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $viewBaby) {
-            BebeInfoView()
+            BebeInfoView(baby: baby) // Pasar el objeto Baby a BebeInfoView
                 .presentationCornerRadius(30)
         }
     }

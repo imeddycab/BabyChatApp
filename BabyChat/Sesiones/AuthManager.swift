@@ -15,6 +15,10 @@ class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var currentUser: User?
     
+    // Propiedad para bebés
+    @Published var babies: [Baby] = []
+    
+    // Estructura para padres
     struct User {
         let uid: String
         let email: String?
@@ -26,6 +30,21 @@ class AuthManager: ObservableObject {
         let rol: String
         let fechaCreacion: Date?
         let fotoPerfil: String?
+    }
+    
+    // Estructura para bebés
+    struct Baby {
+        let id: String
+        let nombres: String
+        let primerApellido: String
+        let segundoApellido: String
+        let apodo: String?
+        let genero: String
+        let nacimiento: String
+        let discapacidad: String
+        let alergias: String
+        let enfermedades: String
+        let fotoperfil: String?
     }
     
     private var dbRef: DatabaseReference
@@ -150,6 +169,43 @@ class AuthManager: ObservableObject {
                 )
                 
                 self.isAuthenticated = true
+                self.fetchUserBabies(uid: uid)
+            }
+        }
+    }
+    
+    func fetchUserBabies(uid: String) {
+        dbRef.child("usuarios").child(uid).child("bebes").observe(.value) { [weak self] snapshot in
+            guard let self = self else { return }
+            
+            var fetchedBabies: [Baby] = []
+            
+            for child in snapshot.children {
+                guard let snapshot = child as? DataSnapshot,
+                      let value = snapshot.value as? [String: Any] else {
+                    continue
+                }
+                
+                let baby = Baby(
+                    id: snapshot.key,
+                    nombres: value["nombres"] as? String ?? "",
+                    primerApellido: value["primer_apellido"] as? String ?? "",
+                    segundoApellido: value["segundo_apellido"] as? String ?? "",
+                    apodo: value["apodo"] as? String,
+                    genero: value["genero"] as? String ?? "",
+                    nacimiento: value["nacimiento"] as? String ?? "",
+                    discapacidad: value["discapacidad"] as? String ?? "",
+                    alergias: value["alergias"] as? String ?? "",
+                    enfermedades: value["enfermedades"] as? String ?? "",
+                    fotoperfil: value["fotoperfil"] as? String
+                )
+                
+                fetchedBabies.append(baby)
+            }
+
+            DispatchQueue.main.async {
+                self.babies = fetchedBabies
+                NotificationCenter.default.post(name: .babiesUpdated, object: nil)
             }
         }
     }
@@ -209,4 +265,8 @@ class AuthManager: ObservableObject {
         cleanupObservers()
         print("AuthManager se está liberando de memoria")
     }
+}
+
+extension Notification.Name {
+    static let babiesUpdated = Notification.Name("BabiesUpdatedNotification")
 }
