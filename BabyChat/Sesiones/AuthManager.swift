@@ -25,6 +25,7 @@ class AuthManager: ObservableObject {
         let genero: String?
         let rol: String
         let fechaCreacion: Date?
+        let fotoPerfil: String?
     }
     
     private var dbRef: DatabaseReference
@@ -75,13 +76,17 @@ class AuthManager: ObservableObject {
                 return
             }
             
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "dd-MM-yyyy"
+            let fechaCreacionString = dateFormatter.string(from: Date())
+            
             let userData: [String: Any] = [
                 "nombres": nombres,
                 "primer_apellido": primerApellido,
                 "segundo_apellido": segundoApellido,
                 "email": email,
                 "rol": "padre",
-                "creacion": ServerValue.timestamp(),
+                "creacion": fechaCreacionString,
                 "genero": "",
                 "nacimiento": "",
                 "fotoperfil": ""
@@ -99,7 +104,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    private func fetchUserData(uid: String) {
+    func fetchUserData(uid: String) {
         // Eliminar cualquier observador previo
         if let handle = userDataHandle {
             dbRef.child("usuarios").child(uid).removeObserver(withHandle: handle)
@@ -109,21 +114,26 @@ class AuthManager: ObservableObject {
         userDataHandle = dbRef.child("usuarios").child(uid).observe(.value) { [weak self] snapshot in
             guard let self = self else { return }
             
-            // Verificar si el snapshot existe y tiene datos
             guard snapshot.exists(), let value = snapshot.value as? [String: Any] else {
-                // Si no existe, creamos un registro básico
                 self.createBasicUserRecord(uid: uid)
                 return
             }
             
-            let timestamp = value["creacion"] as? TimeInterval ?? 0
-            let fechaCreacion = Date(timeIntervalSince1970: timestamp / 1000)
+            // Cambiar el manejo de fecha de creación
+            let fechaCreacionString = value["creacion"] as? String ?? ""
+            let fechaCreacion = self.dateFromString(fechaCreacionString) ?? Date()
             
-            // Extraer los campos
+            // Extraer los campos con nuevo formato
             let segundoApellido = value["segundo_apellido"] as? String ?? ""
-            let genero = value["genero"] as? String ?? "No especificado"
-            let fechaNacimientoTimestamp = value["nacimiento"] as? TimeInterval ?? 0
-            let fechaNacimiento = fechaNacimientoTimestamp > 0 ? Date(timeIntervalSince1970: fechaNacimientoTimestamp) : nil
+            
+            // Manejar género como "M" o "F"
+            let genero = value["genero"] as? String ?? ""
+            
+            // Manejar fecha de nacimiento como string "dd-MM-yyyy"
+            let fechaNacimientoString = value["nacimiento"] as? String ?? ""
+            let fechaNacimiento = self.dateFromString(fechaNacimientoString)
+            
+            let fotoPerfil = value["fotoperfil"] as? String
             
             DispatchQueue.main.async {
                 self.currentUser = User(
@@ -135,7 +145,8 @@ class AuthManager: ObservableObject {
                     fechaNacimiento: fechaNacimiento,
                     genero: genero,
                     rol: value["rol"] as? String ?? "padre",
-                    fechaCreacion: fechaCreacion
+                    fechaCreacion: fechaCreacion,
+                    fotoPerfil: fotoPerfil
                 )
                 
                 self.isAuthenticated = true
@@ -143,8 +154,19 @@ class AuthManager: ObservableObject {
         }
     }
     
+    // Método auxiliar para convertir string a Date
+    func dateFromString(_ dateString: String) -> Date? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM-yyyy"
+        return dateFormatter.date(from: dateString)
+    }
+    
     private func createBasicUserRecord(uid: String) {
         guard let currentAuthUser = Auth.auth().currentUser else { return }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM-yyyy"
+        let fechaCreacionString = dateFormatter.string(from: Date())
         
         let userData: [String: Any] = [
             "nombres": "",
@@ -152,9 +174,10 @@ class AuthManager: ObservableObject {
             "segundo_apellido": "",
             "email": currentAuthUser.email ?? "",
             "rol": "padre",
-            "genero": "No especificado",
-            "nacimiento": 0,
-            "creacion": ServerValue.timestamp()
+            "genero": "",
+            "nacimiento": "",
+            "creacion": fechaCreacionString,
+            "fotoperfil": ""
         ]
         
         dbRef.child("usuarios").child(uid).setValue(userData) { [weak self] error, _ in
