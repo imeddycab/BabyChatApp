@@ -18,8 +18,8 @@ struct AjustesView: View {
     var onLogout: () -> Void
     
     // URLs para las secciones
-    private let helpURL = URL(string: "https://babychat.com/ayuda")!
-    private let privacyURL = URL(string: "https://babychat.com/privacidad")!
+    private let helpURL = URL(string: "https://babychatweb.onrender.com/reportes")!
+    private let privacyURL = URL(string: "https://babychatweb.onrender.com/")!
     
     var body: some View {
         ScrollView {

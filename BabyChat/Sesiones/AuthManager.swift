@@ -45,6 +45,7 @@ class AuthManager: ObservableObject {
         let alergias: String
         let enfermedades: String
         let fotoperfil: String?
+        var seguimiento: (peso: [(date: String, value: String)], estatura: [(date: String, value: String)], imc: [(date: String, value: String)])?
     }
     
     private var dbRef: DatabaseReference
@@ -179,6 +180,7 @@ class AuthManager: ObservableObject {
             guard let self = self else { return }
             
             var fetchedBabies: [Baby] = []
+            let group = DispatchGroup() // Para manejar múltiples llamadas asíncronas
             
             for child in snapshot.children {
                 guard let snapshot = child as? DataSnapshot,
@@ -186,7 +188,7 @@ class AuthManager: ObservableObject {
                     continue
                 }
                 
-                let baby = Baby(
+                var baby = Baby(
                     id: snapshot.key,
                     nombres: value["nombres"] as? String ?? "",
                     primerApellido: value["primer_apellido"] as? String ?? "",
@@ -197,17 +199,54 @@ class AuthManager: ObservableObject {
                     discapacidad: value["discapacidad"] as? String ?? "",
                     alergias: value["alergias"] as? String ?? "",
                     enfermedades: value["enfermedades"] as? String ?? "",
-                    fotoperfil: value["fotoperfil"] as? String
+                    fotoperfil: value["fotoperfil"] as? String,
+                    seguimiento: nil // Inicialmente nil
                 )
                 
-                fetchedBabies.append(baby)
+                group.enter()
+                self.loadSeguimiento(for: baby) { updatedBaby in
+                    baby = updatedBaby
+                    fetchedBabies.append(baby)
+                    group.leave()
+                }
             }
-
-            DispatchQueue.main.async {
+            
+            group.notify(queue: .main) {
                 self.babies = fetchedBabies
                 NotificationCenter.default.post(name: .babiesUpdated, object: nil)
             }
         }
+    }
+
+    private func loadSeguimiento(for baby: Baby, completion: @escaping (Baby) -> Void) {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            completion(baby)
+            return
+        }
+        
+        dbRef.child("usuarios").child(uid).child("bebes").child(baby.id).child("seguimiento")
+            .observeSingleEvent(of: .value) { snapshot in
+                var updatedBaby = baby
+                
+                if snapshot.exists(), let seguimientoDict = snapshot.value as? [String: Any] {
+                    let pesoData = self.processFirebaseData(seguimientoDict["peso"] as? [String: String])
+                    let estaturaData = self.processFirebaseData(seguimientoDict["estatura"] as? [String: String])
+                    let imcData = self.processFirebaseData(seguimientoDict["imc"] as? [String: String])
+                    
+                    updatedBaby.seguimiento = (
+                        peso: pesoData,
+                        estatura: estaturaData,
+                        imc: imcData
+                    )
+                }
+                
+                completion(updatedBaby)
+            }
+    }
+
+    private func processFirebaseData(_ data: [String: String]?) -> [(date: String, value: String)] {
+        guard let data = data else { return [] }
+        return data.map { (date: $0.key, value: $0.value) }.sorted { $0.date > $1.date }
     }
     
     // Método auxiliar para convertir string a Date

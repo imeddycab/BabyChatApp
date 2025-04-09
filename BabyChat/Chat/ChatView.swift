@@ -116,7 +116,7 @@ struct ChatView: View {
                     ("¡Hola! ¿En qué puedo ayudarte hoy con \(currentBabyName)? 😊", false)
                 ]
             }
-            .clipShape(RoundedRectangle(cornerRadius: 35))
+            .clipShape(RoundedRectangle(cornerRadius: 30))
             .padding(10)
             .background(Color(.blue).opacity(0.9).blur(radius: 100))
             .presentationCornerRadius(30)
