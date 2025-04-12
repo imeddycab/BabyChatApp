@@ -33,14 +33,8 @@ struct InicioView: View {
                     Text("No hay tarjetas disponibles")
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(readingsManager.cards, id: \.uid) { card in
-                        NavigationLink(destination: DetallesView(
-                            category: card.category,
-                            title: card.title,
-                            description: card.description,
-                            content: card.content,
-                            source: card.source
-                        )) {
+                    ForEach(readingsManager.cards, id: \.id) { card in
+                        NavigationLink(destination: DetallesView(card: card)) {
                             CategoryCard(
                                 title: card.title,
                                 description: card.description,

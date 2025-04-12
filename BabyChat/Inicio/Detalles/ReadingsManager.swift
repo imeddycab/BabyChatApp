@@ -6,214 +6,156 @@
 //
 
 import Foundation
-import FirebaseFirestore
+import FirebaseDatabase
 
 class ReadingsManager: ObservableObject {
     static let shared = ReadingsManager()
-    private var db = Firestore.firestore()
+    private var dbRef: DatabaseReference!
     
     @Published var cards: [Card] = []
     @Published var isLoading = false
     @Published var uploadError: String?
     
     private init() {
-        checkAndUploadInitialData()
+        dbRef = Database.database().reference()
+        fetchReadings()
     }
     
     func fetchReadings() {
         isLoading = true
-        db.collection("lecturas").getDocuments { [weak self] snapshot, error in
+        dbRef.child("lecturas").observe(.value) { [weak self] snapshot in
             guard let self = self else { return }
             self.isLoading = false
             
-            if let error = error {
-                print("Error fetching readings: \(error.localizedDescription)")
+            guard snapshot.exists() else {
+                print("No se encontraron lecturas en la base de datos")
                 return
             }
             
-            guard let documents = snapshot?.documents, !documents.isEmpty else {
-                print("No documents found, uploading initial data")
-                self.uploadInitialData()
-                return
-            }
+            var newCards: [Card] = []
             
-            var uniqueCards = [Card]()
-            
-            for document in documents {
-                let data = document.data()
+            // Iterar sobre todos los hijos del nodo lecturas
+            for child in snapshot.children {
+                guard let snapshot = child as? DataSnapshot,
+                      let readingDict = snapshot.value as? [String: Any] else {
+                    continue
+                }
                 
-                // Mapeo manual para evitar problemas de decodificación
-                let card = Card(
-                    id: document.documentID,
-                    documentId: document.documentID,
-                    originalId: data["originalId"] as? Int ?? (data["id"] as? Int ?? 0),
-                    category: data["category"] as? String ?? "",
-                    title: data["title"] as? String ?? "",
-                    description: data["description"] as? String ?? "",
-                    content: data["content"] as? String ?? "",
-                    source: data["source"] as? String ?? "",
-                    icon: data["icon"] as? String ?? "book" // Icono por defecto válido
-                )
-                
-                // Evitar duplicados
-                if !uniqueCards.contains(where: { $0.documentId == card.documentId }) {
-                    uniqueCards.append(card)
-                    print("Loaded card - ID: \(card.documentId ?? "nil"), Title: \(card.title)")
+                if let card = self.parseReadingData(id: snapshot.key, data: readingDict) {
+                    newCards.append(card)
+                    print("Cargada tarjeta: \(card.title)") // Debug
                 }
             }
             
-            self.cards = uniqueCards.sorted { $0.originalId < $1.originalId }
+            // Ordenar por originalId (o createdAt si lo prefieres)
+            self.cards = newCards.sorted { $0.originalId > $1.originalId }
+            self.printLoadedCards() // Debug
         }
     }
     
-    func uploadInitialDataIfNeeded() {
-        // Verificar si ya hay datos antes de subir
-        db.collection("lecturas").getDocuments { [weak self] snapshot, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                print("Error checking for existing data: \(error.localizedDescription)")
-                return
-            }
-            
-            // Si no hay documentos, subir los datos iniciales
-            if snapshot?.documents.isEmpty == true {
-                self.uploadInitialData()
-            }
-        }
-    }
-    
-    func uploadInitialData() {
-        let localCards = DataLoader.loadJSON()
-        guard !localCards.isEmpty else {
-            print("ERROR: No hay tarjetas locales para subir")
-            return
+    private func parseReadingData(id: String, data: [String: Any]) -> Card? {
+        guard let category = data["category"] as? String,
+              let title = data["title"] as? String,
+              let source = data["source"] as? String,
+              let originalId = data["originalId"] as? Int else {
+            print("Datos esenciales faltantes para la lectura \(id)")
+            return nil
         }
         
-        print("Iniciando subida de \(localCards.count) tarjetas...")
+        print("Procesando lectura ID: \(id)") // Debug
         
-        let batch = db.batch()
-        
-        for card in localCards {
-            let docRef = db.collection("lecturas").document("card_\(card.originalId)")
-            
-            do {
-                let data = try Firestore.Encoder().encode(card)
-                batch.setData(data, forDocument: docRef)
-                print("Preparada tarjeta \(card.originalId) para subir")
-            } catch {
-                print("ERROR al codificar tarjeta \(card.originalId): \(error)")
-            }
+        guard let category = data["category"] as? String else {
+            print("Error: Falta categoría en lectura \(id)")
+            return nil
+        }
+        guard let title = data["title"] as? String else {
+            print("Error: Falta título en lectura \(id)")
+            return nil
+        }
+        guard let source = data["source"] as? String else {
+            print("Error: Falta fuente en lectura \(id)")
+            return nil
+        }
+        guard let originalId = data["originalId"] as? Int else {
+            print("Error: Falta originalId en lectura \(id)")
+            return nil
         }
         
-        batch.commit { error in
-            if let error = error {
-                print("ERROR al subir datos: \(error.localizedDescription)")
-            } else {
-                print("Éxito: \(localCards.count) tarjetas subidas a Firestore")
-                self.verifyUpload(count: localCards.count)
-            }
-        }
-    }
-
-    func verifyUpload(count expectedCount: Int) {
-        db.collection("lecturas").getDocuments { snapshot, error in
-            if let error = error {
-                print("Verification failed: \(error.localizedDescription)")
-                return
-            }
-            
-            let actualCount = snapshot?.documents.count ?? 0
-            print("Verification result: \(actualCount)/\(expectedCount) documents found")
-            
-            if actualCount != expectedCount {
-                print("Mismatch in document count. Retrying upload...")
-                self.uploadInitialData()
-            } else {
-                print("Upload verification successful")
-                self.fetchReadings() // Refrescar los datos en la app
-            }
-        }
-    }
-    
-    private func checkAndUploadInitialData() {
-        db.collection("lecturas").limit(to: 1).getDocuments { [weak self] snapshot, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                print("Initial check failed: \(error.localizedDescription)")
-                return
-            }
-            
-            if snapshot?.isEmpty == true {
-                print("No data found in Firestore. Uploading initial data...")
-                self.uploadInitialData()
-            } else {
-                print("Data exists in Firestore. Fetching...")
-                self.fetchReadings()
-            }
-        }
-    }
-    
-    func forceLoadAndUpload() {
-        // 1. Borrar colección existente
-        deleteAllCards { [weak self] in
-            guard let self = self else { return }
-            
-            // 2. Cargar JSON local
-            let cards = DataLoader.loadJSON()
-            
-            // 3. Subir datos
-            self.uploadCards(cards: cards)
-        }
-    }
-
-    private func deleteAllCards(completion: @escaping () -> Void) {
-        db.collection("lecturas").getDocuments { snapshot, error in
-            guard let documents = snapshot?.documents else {
-                completion()
-                return
-            }
-            
-            let batch = self.db.batch()
-            documents.forEach { batch.deleteDocument($0.reference) }
-            
-            batch.commit { _ in
-                print("Colección limpiada")
-                completion()
-            }
-        }
-    }
-
-    private func uploadCards(cards: [Card]) {
-        cards.forEach { card in
-            db.collection("lecturas").document("card_\(card.originalId)").setData([
-                "originalId": card.originalId,
-                "category": card.category,
-                "title": card.title,
-                "description": card.description,
-                "content": card.content,
-                "source": card.source,
-                "icon": card.icon
-            ]) { error in
-                if let error = error {
-                    print("Error subiendo card \(card.originalId): \(error)")
-                } else {
-                    print("Card \(card.originalId) subida correctamente")
+        let description = data["description"] as? String ?? ""
+        let icon = data["icon"] as? String ?? "book"
+        
+        // Procesar bloques de contenido
+        var contentBlocks: [ContentBlock] = []
+        
+        if let contentArray = data["content"] as? [[String: Any]] {
+            for blockDict in contentArray {
+                if let type = blockDict["type"] as? String,
+                   let content = blockDict["content"] as? String,
+                   let order = blockDict["order"] as? Int {
+                    
+                    let block = ContentBlock(type: type, content: content, order: order)
+                    contentBlocks.append(block)
                 }
             }
         }
+        
+        // Ordenar los bloques por su orden
+        contentBlocks.sort { $0.order < $1.order }
+        
+        print("Lectura \(id) procesada correctamente") // Debug
+        return Card(
+            id: id,
+            documentId: id,
+            originalId: originalId,
+            category: category,
+            title: title,
+            description: description,
+            source: source,
+            icon: icon,
+            contentBlocks: contentBlocks
+        )
     }
     
-    func emergencyRestore() {
-        let defaultCards = [
-            Card(id: "card_1", documentId: "card_1", originalId: 1,
-                 category: "Técnicas de maternidad", title: "Instructivo",
-                 description: "Principios del cuidado...", content: "Antes de dar el gran paso...",
-                 source: "IMSS, 2025.", icon: "figure.dress"),
-            // Agrega las demás tarjetas manualmente aquí
+    // Función para subir nuevas lecturas (opcional)
+    func uploadReading(card: Card, completion: @escaping (Bool) -> Void) {
+        let readingData: [String: Any] = [
+            "category": card.category,
+            "title": card.title,
+            "description": card.description,
+            "source": card.source,
+            "content": [ // Esto es un ejemplo básico, adapta según tu estructura
+                [
+                    "type": "text",
+                    "content": card.content,
+                    "order": 0
+                ]
+            ],
+            "createdAt": ServerValue.timestamp(),
+            "originalId": Int(Date().timeIntervalSince1970 * 1000)
         ]
         
-        uploadCards(cards: defaultCards)
+        dbRef.child("lecturas").childByAutoId().setValue(readingData) { error, _ in
+            if let error = error {
+                print("Error al subir lectura: \(error.localizedDescription)")
+                completion(false)
+            } else {
+                print("Lectura subida con éxito")
+                self.fetchReadings() // Actualizar la lista
+                completion(true)
+            }
+        }
+    }
+    
+    // Método para imprimir todas las tarjetas cargadas (debug)
+    func printLoadedCards() {
+        print("\n=== TARJETAS CARGADAS ===")
+        cards.forEach { card in
+            print("""
+            ID: \(card.id ?? "nil")
+            Título: \(card.title)
+            Bloques de contenido: \(card.contentBlocks.count)
+            """)
+        }
+        print("========================\n")
     }
 }

@@ -6,34 +6,46 @@
 //
 
 import Foundation
-import FirebaseFirestore
+import FirebaseDatabase
 
 struct Card: Identifiable, Codable, Hashable {
-    // Cambiar a var para permitir asignación posterior
-    var id: String?          // ID de Firestore (String)
-    var documentId: String?  // ID del documento
-    let originalId: Int      // ID numérico del JSON
-    
+    var id: String?
+    var documentId: String?
+    let originalId: Int
     let category: String
     let title: String
     let description: String
-    let content: String
     let source: String
-    let icon: String         // Usar solo iconos válidos
+    let icon: String
+    let contentBlocks: [ContentBlock]
     
-    // Mapeo manual de claves para evitar conflictos
     enum CodingKeys: String, CodingKey {
-        case originalId = "id"  // Mapear el campo "id" del JSON a originalId
+        case originalId = "id"
         case category
         case title
         case description
-        case content
         case source
         case icon
+        case contentBlocks = "content"
+    }
+    
+    // Propiedad computada para compatibilidad
+    var content: String {
+        return contentBlocks
+            .filter { $0.type == "text" }
+            .sorted { $0.order < $1.order }
+            .map { $0.content }
+            .joined(separator: "\n\n")
     }
     
     // Para Identifiable
     var uid: String {
         return id ?? documentId ?? String(originalId)
     }
+}
+
+struct ContentBlock: Codable, Hashable {
+    let type: String
+    let content: String
+    let order: Int
 }
