@@ -9,11 +9,7 @@ import SwiftUI
 
 struct DetallesView: View {
     @Environment(\.presentationMode) var presentationMode
-    var category: String
-    var title: String
-    var description: String
-    var content: String
-    var source: String
+    var card: Card // Cambiamos a recibir el Card completo
     
     var body: some View {
         ScrollView {
@@ -27,7 +23,7 @@ struct DetallesView: View {
                             Image(systemName: "chevron.left")
                                 .foregroundColor(.black)
                             
-                            Text(category)
+                            Text(card.category)
                                 .foregroundColor(.black)
                                 .fontWeight(.medium)
                         }
@@ -44,53 +40,33 @@ struct DetallesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     // Título principal
-                    Text(title)
+                    Text(card.title)
                         .font(.title)
                         .fontWeight(.bold)
 
                     // Fuente
-                    Text(source)
+                    Text(card.source)
                         .font(.caption)
                         .foregroundColor(.gray)
 
                     // Descripción
-                    Text(description)
+                    Text(card.description)
                         .font(.body)
                         .foregroundColor(.black)
                     
                     Divider()
-                        .background(Color.gray) // Opcional para cambiar el color de la línea
                     
-                    // Imagen ilustrativa (placeholder)
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.pink)
-                        .frame(height: 200)
-                        .overlay(
-                            Text("Imagen ilustrativa de pañalera abierta.")
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(8),
-                            alignment: .bottomTrailing
-                        )
-
-                    // Contenido principal
+                    // Contenido estructurado
                     VStack(alignment: .leading, spacing: 20) {
-                        FormatText(text: content)
+                        ForEach(card.contentBlocks.sorted { $0.order < $1.order }, id: \.self) { block in
+                            ContentBlockView(block: block)
+                        }
                     }
-
-                    // Segunda imagen (carga visual, otra imagen ilustrativa)
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.pink)
-                        .frame(height: 120)
-
-                    // Espacio adicional al final
-                    Spacer(minLength: 10)
                     
                     Divider()
-                        .background(Color.gray)
                     
                     // Fuente
-                    Text("Artículo revisado y proporcionado por Dr. Juan Pérez Cazares, Pediatrics Specialist.")
+                    Text("Artículo revisado y proporcionado por especialistas.")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -101,18 +77,73 @@ struct DetallesView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }
-            .navigationBarHidden(true) // Oculta la barra de navegación
+            .navigationBarHidden(true)
             .edgesIgnoringSafeArea(.bottom)
         }
     }
 }
 
+struct ContentBlockView: View {
+    let block: ContentBlock
+    @State private var imageLoadingError = false
+    
+    var body: some View {
+        Group {
+            if block.type == "text" {
+                Text(block.content)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 12)
+            } else if block.type == "image" {
+                if imageLoadingError {
+                    placeholderImage
+                } else {
+                    if let imageData = Data(base64Encoded: block.content.split(separator: ",").last?.description ?? ""),
+                       let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .cornerRadius(12)
+                            .padding(.vertical, 8)
+                            .onAppear {
+                                imageLoadingError = false
+                            }
+                    } else {
+                        placeholderImage
+                            .onAppear {
+                                imageLoadingError = true
+                            }
+                    }
+                }
+            }
+        }
+    }
+    
+    private var placeholderImage: some View {
+        ZStack {
+            Color.gray.opacity(0.2)
+            Image(systemName: "photo")
+                .foregroundColor(.gray)
+        }
+        .frame(height: 200)
+        .cornerRadius(12)
+    }
+}
+
 #Preview {
-    DetallesView(
+    let sampleCard = Card(
+        id: "1",
+        documentId: "card_1",
+        originalId: 1,
         category: "Técnicas de maternidad",
         title: "Instructivo",
         description: "Principios del cuidado y preparación del parto, muda y pañalera.",
-        content: "Antes de dar el gran paso a la maternidad es importante que conozcas los cuidados que son adecuados antes y después del parto, que deberías usar, pero igual qué deberías preparar antes de entrar en labor.\n\n1. Usar ropa cómoda y elástica.\nLa ropa que tú elijas puede influir en tu comodidad día a día, no solo el día de parto, elegir una muda que no afecte tu comodidad puede disminuir el ...",
-        source: "IMSS, 2025."
+        source: "IMSS, 2025.",
+        icon: "book",
+        contentBlocks: [
+            ContentBlock(type: "text", content: "1. Usar ropa cómoda y elástica.", order: 0),
+            ContentBlock(type: "text", content: "La ropa que tú elijas puede influir en tu comodidad día a día...", order: 1)
+        ]
     )
+    DetallesView(card: sampleCard)
 }

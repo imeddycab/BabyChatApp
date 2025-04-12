@@ -6,15 +6,7 @@
 //
 
 import SwiftUI
-
-struct BabyProfile: Identifiable {
-    let id = UUID()
-    let name: String
-    let imageName: String
-    let peso: String
-    let estatura: String
-    let imc: String
-}
+import FirebaseAuth
 
 struct CambiarBebeView: View {
     @Environment(\.presentationMode) var presentationMode
@@ -22,13 +14,7 @@ struct CambiarBebeView: View {
     @Binding var selectedBabyName: String
     var onBabyChanged: (() -> Void)?
     
-    @State private var babies: [BabyProfile] = [
-        BabyProfile(name: "Ethan", imageName: "baby1", peso: "1.6 kg", estatura: "41 cm", imc: "10"),
-        BabyProfile(name: "Liam", imageName: "baby2", peso: "2.1 kg", estatura: "45 cm", imc: "11"),
-        BabyProfile(name: "Emma", imageName: "baby3", peso: "1.8 kg", estatura: "43 cm", imc: "9"),
-        BabyProfile(name: "Sophia", imageName: "baby4", peso: "2.0 kg", estatura: "44 cm", imc: "10")
-    ]
-    
+    @StateObject private var authManager = AuthManager.shared
     @State private var navigationPath = NavigationPath()
     
     enum DestinoNavegacion: Hashable {
@@ -60,33 +46,58 @@ struct CambiarBebeView: View {
                     }
                     .padding(.horizontal)
                     
-                    ScrollView {
-                        ForEach(babies) { baby in
+                    if authManager.babies.isEmpty {
+                        Text("No tienes bebés registrados")
+                            .foregroundColor(.gray)
+                            .padding()
+                    } else {
+                        ForEach(authManager.babies.indices, id: \.self) { index in
+                            let baby = authManager.babies[index]
+                            let babyImageName = baby.fotoperfil != nil ? "babyphoto" : "babyphoto"
+                            
                             Button(action: {
-                                selectedBabyImage = baby.imageName
-                                selectedBabyName = baby.name
+                                selectedBabyImage = babyImageName
+                                selectedBabyName = baby.nombres
                                 onBabyChanged?()
                             }) {
                                 HStack {
-                                    Image(baby.imageName)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 50, height: 50)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(selectedBabyName == baby.name ? Color.blue : Color.clear, lineWidth: 2)
-                                        )
+                                    if let fotoBase64 = baby.fotoperfil,
+                                       let imageData = Data(base64Encoded: fotoBase64),
+                                       let uiImage = UIImage(data: imageData) {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 50, height: 50)
+                                            .clipShape(Circle())
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(selectedBabyName == baby.nombres ? Color.blue : Color.clear, lineWidth: 2)
+                                            )
+                                    } else {
+                                        Image(babyImageName)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 50, height: 50)
+                                            .clipShape(Circle())
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(selectedBabyName == baby.nombres ? Color.blue : Color.clear, lineWidth: 2)
+                                            )
+                                    }
                                     
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(baby.name)
+                                        Text(baby.nombres)
                                             .font(.headline)
                                             .foregroundColor(.primary)
                                         
                                         HStack {
-                                            Text("Peso: \(baby.peso)")
-                                            Text("Estatura: \(baby.estatura)")
-                                            Text("IMC: \(baby.imc)")
+                                            if let seguimiento = baby.seguimiento {
+                                                Text("Peso: \(seguimiento.peso.last?.value ?? "N/A") kg")
+                                                Text("Estatura: \(seguimiento.estatura.last?.value ?? "N/A") cm")
+                                                Text("IMC: \(seguimiento.imc.last?.value ?? "N/A")")
+                                            } else {
+                                                Text("Sin datos de seguimiento")
+                                            }
                                         }
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -94,7 +105,7 @@ struct CambiarBebeView: View {
                                     
                                     Spacer()
                                     
-                                    if selectedBabyName == baby.name {
+                                    if selectedBabyName == baby.nombres {
                                         Image(systemName: "checkmark")
                                             .foregroundColor(.blue)
                                     }
@@ -106,27 +117,43 @@ struct CambiarBebeView: View {
                         }
                     }
                     
-                    if let baby = babies.first(where: { $0.name == selectedBabyName }) {
+                    if let baby = authManager.babies.first(where: { $0.nombres == selectedBabyName }) {
+                        let seguimiento = baby.seguimiento
+                        
                         VStack(spacing: 15) {
-                            Text("Perfil de \(baby.name)")
+                            Text("Perfil de \(baby.nombres)")
                                 .font(.title3)
                                 .fontWeight(.bold)
                             
                             HStack {
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("Peso: \(baby.peso)")
-                                    Text("Estatura: \(baby.estatura)")
-                                    Text("IMC: \(baby.imc)")
+                                    if let seguimiento = seguimiento {
+                                        Text("Peso: \(seguimiento.peso.last?.value ?? "N/A") kg")
+                                        Text("Estatura: \(seguimiento.estatura.last?.value ?? "N/A") cm")
+                                        Text("IMC: \(seguimiento.imc.last?.value ?? "N/A")")
+                                    } else {
+                                        Text("Sin datos de seguimiento")
+                                    }
                                 }
                                 .font(.subheadline)
                                 
                                 Spacer()
                                 
-                                Image(baby.imageName)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 70, height: 70)
-                                    .clipShape(Circle())
+                                if let fotoBase64 = baby.fotoperfil,
+                                   let imageData = Data(base64Encoded: fotoBase64),
+                                   let uiImage = UIImage(data: imageData) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 70, height: 70)
+                                        .clipShape(Circle())
+                                } else {
+                                    Image("baby_profile")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 70, height: 70)
+                                        .clipShape(Circle())
+                                }
                             }
                             
                             NavigationLink(value: DestinoNavegacion.seguimiento) {
@@ -157,15 +184,25 @@ struct CambiarBebeView: View {
             .navigationDestination(for: DestinoNavegacion.self) { destino in
                 switch destino {
                 case .seguimiento:
-                    if let baby = babies.first(where: { $0.name == selectedBabyName }) {
+                    if let baby = authManager.babies.first(where: { $0.nombres == selectedBabyName }) {
+                        let seguimiento = baby.seguimiento
                         SeguimientoBebeView(
-                            babyName: baby.name,
-                            babyProfile: (baby.peso, baby.estatura, baby.imc),
-                            babyImage: baby.imageName
+                            babyName: baby.nombres,
+                            babyProfile: (
+                                seguimiento?.peso.last?.value ?? "N/A",
+                                seguimiento?.estatura.last?.value ?? "N/A",
+                                seguimiento?.imc.last?.value ?? "N/A"
+                            ),
+                            babyImage: baby.fotoperfil != nil ? "baby_profile" : "baby1"
                         )
                     }
                 default:
                     EmptyView()
+                }
+            }
+            .onAppear {
+                if let uid = Auth.auth().currentUser?.uid {
+                    authManager.fetchUserBabies(uid: uid)
                 }
             }
         }

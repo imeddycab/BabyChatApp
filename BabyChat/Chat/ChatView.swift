@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChatView: View {
     @State private var messageText: String = ""
+    @FocusState private var isTextFieldFocused: Bool
     @State private var messages: [(text: String, isUser: Bool)] = [
         ("¡Hola! ¿Cómo puedo ayudarte?", false)
     ]
@@ -90,6 +91,7 @@ struct ChatView: View {
                     .padding(12)
                     .background(Color(.systemGray6))
                     .clipShape(Capsule())
+                    .focused($isTextFieldFocused)
 
                 Button(action: sendMessage) {
                     Text("Enviar")
@@ -114,7 +116,7 @@ struct ChatView: View {
                     ("¡Hola! ¿En qué puedo ayudarte hoy con \(currentBabyName)? 😊", false)
                 ]
             }
-            .clipShape(RoundedRectangle(cornerRadius: 35))
+            .clipShape(RoundedRectangle(cornerRadius: 30))
             .padding(10)
             .background(Color(.blue).opacity(0.9).blur(radius: 100))
             .presentationCornerRadius(30)
@@ -123,17 +125,35 @@ struct ChatView: View {
     
     func sendMessage() {
         guard !messageText.isEmpty else { return }
+        
+        // Cierra el teclado
+        isTextFieldFocused = false
+        
         let userMessage = messageText
         messages.append((text: userMessage, isUser: true))
         messageText = ""
         isTyping = true
         
+        let prompt = """
+        Proporciona una observación concisa que responda a las dudas del tutor acerca del bebé. 
+        
+        Sé específico, amigable con el lenguaje del usuario y da recomendaciones si es necesario.
+        
+        Si el usuario lo pide, toma en cuenta estos datos de seguimiento del bebé:
+        - Edad: 6 meses
+        - Estatura: 41cm
+        - Peso: 1.6kg
+        - IMC: 10
+        
+        Y no respondas nada que no conozcas. Solo respondes a preguntas relacionadas con el desarrollo del bebé (le recordarás al usuario cuál es tu papel si te llegara a pedir otro tipo de consulta) y si es necesario le recordarás al usuario que siempre deberá consultar a su pediatra.
+        """
+        
         let requestBody: [String: Any] = [
             "model": "llama-3.1-8b-instant",
-            "temperature": 0.6,
+            "temperature": 0.7,
             "max_completion_tokens": 1024,
             "top_p": 1,
-            "messages": messages.map { ["role": $0.isUser ? "user" : "Car assistant", "content": $0.text] }
+            "messages": messages.map { ["role": $0.isUser ? "user" : "assistant", "content": prompt] }
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else { return }

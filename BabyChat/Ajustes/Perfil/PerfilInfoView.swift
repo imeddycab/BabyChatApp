@@ -6,15 +6,12 @@
 //
 
 import SwiftUI
-
-enum Gender: String, CaseIterable {
-    case female = "Femenino"
-    case male = "Masculino"
-    case unspecified = "No especificado"
-}
+import FirebaseDatabase
+import FirebaseAuth
 
 struct PerfilInfoView: View {
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var authManager: AuthManager
     @State private var showEditProfileSheet = false
     @State private var showClearChatsConfirmation = false
     @State private var showDeleteBabiesConfirmation = false
@@ -26,6 +23,28 @@ struct PerfilInfoView: View {
     @State private var editedBirthDate = Date()
     @State private var editedGender: Gender = .female
     
+    // Inicializador para establecer los valores iniciales
+    init() {
+        let authManager = AuthManager.shared
+        _editedName = State(initialValue: authManager.currentUser?.nombres ?? "")
+        _editedLastName = State(initialValue: authManager.currentUser?.primerApellido ?? "")
+        _editedSecondLastName = State(initialValue: authManager.currentUser?.segundoApellido ?? "")
+        
+        // Manejar fecha de nacimiento
+        if let fechaNacimiento = authManager.currentUser?.fechaNacimiento {
+            _editedBirthDate = State(initialValue: fechaNacimiento)
+        } else {
+            _editedBirthDate = State(initialValue: Date())
+        }
+        
+        // Manejar género (convertir "M" o "F" a enum Gender)
+        if let genero = authManager.currentUser?.genero {
+            _editedGender = State(initialValue: genero == "M" ? .male : .female)
+        } else {
+            _editedGender = State(initialValue: .unspecified)
+        }
+    }
+    
     var accountDetails: [(String, String)] {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "dd/MM/yyyy"
@@ -36,7 +55,7 @@ struct PerfilInfoView: View {
             ("Segundo apellido", editedSecondLastName),
             ("Fecha de nacimiento", dateFormatter.string(from: editedBirthDate)),
             ("Género", editedGender.rawValue),
-            ("Email", "e***@***.com")
+            ("Email", authManager.currentUser?.email?.maskedEmail() ?? "No disponible")
         ]
     }
     
@@ -85,25 +104,28 @@ struct PerfilInfoView: View {
                         editedBirthDate: $editedBirthDate,
                         editedGender: $editedGender
                     )
+                    .environmentObject(authManager)
                     .clipShape(RoundedRectangle(cornerRadius: 35))
                     .background(Color(.orange).opacity(0.1).blur(radius: 100))
                     .presentationCornerRadius(30)
                 }
                 
-                Image(systemName: selectedImage == nil ? "person.fill" : "")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.purple)
-                    .clipShape(Circle())
-                    .overlay(
-                        selectedImage.map { image in
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .clipShape(Circle())
-                        }
-                    )
+                if let fotoBase64 = authManager.currentUser?.fotoPerfil,
+                   let imageData = Data(base64Encoded: fotoBase64),
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.purple)
+                        .clipShape(Circle())
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
@@ -393,6 +415,11 @@ struct EditProfileView: View {
     @State private var newPassword: String = ""
     @State private var confirmPassword: String = ""
     @State private var showImagePicker = false
+    @State private var isSaving = false
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    
+    @EnvironmentObject var authManager: AuthManager
     
     init(isPresented: Binding<Bool>, selectedImage: Binding<UIImage?>, editedName: Binding<String>, editedLastName: Binding<String>, editedSecondLastName: Binding<String>, editedBirthDate: Binding<Date>, editedGender: Binding<Gender>) {
         self._isPresented = isPresented
@@ -422,27 +449,21 @@ struct EditProfileView: View {
                             Spacer()
                             VStack {
                                 if let image = selectedImage {
-                                    HStack {
-                                        Image(uiImage: image)
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 100, height: 100)
-                                            .clipShape(Circle())
-                                        Text("Así se verá tu foto de perfil.")
-                                            .foregroundColor(.gray)
-                                    }
-                                    Text("¿Otra foto?")
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                    Text("Cambiar foto")
                                         .foregroundColor(.purple)
                                 } else {
-                                    HStack {
-                                        Image(systemName: "person.crop.circle.badge.plus")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30, height: 30)
-                                            .foregroundColor(.purple)
-                                        Text("Seleccionar Foto")
-                                            .foregroundColor(.purple)
-                                    }
+                                    Image(systemName: "person.crop.circle.badge.plus")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 50, height: 50)
+                                        .foregroundColor(.purple)
+                                    Text("Agregar foto")
+                                        .foregroundColor(.purple)
                                 }
                             }
                             Spacer()
@@ -482,47 +503,113 @@ struct EditProfileView: View {
                 }
                 .foregroundColor(.gray),
                 trailing: Button("Guardar") {
-                    isPresented = false
+                    saveProfileChanges()
                 }
                 .foregroundColor(.purple)
+                .disabled(isSaving)
             )
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(selectedImage: $selectedImage)
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Edición de perfil"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            }
+        }
+    }
+    
+    private func saveProfileChanges() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            alertMessage = "No se pudo identificar al usuario"
+            showAlert = true
+            return
+        }
+        
+        isSaving = true
+        
+        // Convertir imagen a base64 si existe
+        var photoBase64 = ""
+        if let image = selectedImage, let imageData = image.jpegData(compressionQuality: 0.5) {
+            photoBase64 = imageData.base64EncodedString()
+        }
+        
+        // Formatear fecha de nacimiento como "dd-MM-yyyy"
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd-MM-yyyy"
+        let birthDateString = dateFormatter.string(from: editedBirthDate)
+        
+        // Formatear género como "M" o "F"
+        let genero = editedGender == .male ? "M" : "F"
+        
+        // Crear diccionario con los datos actualizados
+        var updatedData: [String: Any] = [
+            "nombres": editedName,
+            "primer_apellido": editedLastName,
+            "segundo_apellido": editedSecondLastName,
+            "genero": genero,
+            "nacimiento": birthDateString
+        ]
+        
+        // Solo actualizar la foto si se seleccionó una nueva
+        if !photoBase64.isEmpty {
+            updatedData["fotoperfil"] = photoBase64
+        }
+        
+        // Actualizar contraseña si se proporcionó y coincide
+        if !newPassword.isEmpty {
+            if newPassword == confirmPassword {
+                Auth.auth().currentUser?.updatePassword(to: newPassword) { error in
+                    if let error = error {
+                        alertMessage = "Error al actualizar contraseña: \(error.localizedDescription)"
+                        showAlert = true
+                        isSaving = false
+                        return
+                    }
+                }
+            } else {
+                alertMessage = "Las contraseñas no coinciden"
+                showAlert = true
+                isSaving = false
+                return
+            }
+        }
+        
+        // Referencia a la base de datos
+        let ref = Database.database().reference()
+        let userRef = ref.child("usuarios").child(userId)
+        
+        // Guardar datos
+        userRef.updateChildValues(updatedData) { error, _ in
+            isSaving = false
+            if let error = error {
+                alertMessage = "Error al guardar: \(error.localizedDescription)"
+                showAlert = true
+            } else {
+                // Actualizar el authManager para reflejar los cambios
+                authManager.fetchUserData(uid: userId)
+                alertMessage = "Perfil actualizado exitosamente"
+                showAlert = true
+                isPresented = false
             }
         }
     }
 }
 
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var selectedImage: UIImage?
-    @Environment(\.presentationMode) var presentationMode
-    
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.delegate = context.coordinator
-        picker.sourceType = .photoLibrary
-        return picker
-    }
-    
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+// Extensión para enmascarar el email
+extension String {
+    func maskedEmail() -> String {
+        guard self.contains("@") else { return self }
+        let components = self.components(separatedBy: "@")
+        guard components.count == 2 else { return self }
         
-        init(_ parent: ImagePicker) {
-            self.parent = parent
-        }
+        let username = components[0]
+        let domainComponents = components[1].components(separatedBy: ".")
         
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let uiImage = info[.originalImage] as? UIImage {
-                parent.selectedImage = uiImage
-            }
-            parent.presentationMode.wrappedValue.dismiss()
-        }
+        guard !username.isEmpty, domainComponents.count >= 2 else { return self }
+        
+        let maskedUsername = String(username.prefix(1)) + "***" + (username.count > 1 ? String(username.suffix(1)) : "")
+        let maskedDomain = String(domainComponents[0].prefix(1)) + "***" + "." + domainComponents[1]
+        
+        return maskedUsername + "@" + maskedDomain
     }
 }
 

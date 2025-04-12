@@ -8,22 +8,24 @@
 import SwiftUI
 
 struct AjustesView: View {
+    @ObservedObject private var authManager = AuthManager.shared
     @State private var selectedBaby: String? = nil
     @State private var viewBaby = false
+    @State private var bbShowAddBabySheet = false
     @State private var showNotifications = false
     @State private var showExportData = false
     @State private var showAppInfo = false
     var onLogout: () -> Void
     
     // URLs para las secciones
-    private let helpURL = URL(string: "https://babychat.com/ayuda")!
-    private let privacyURL = URL(string: "https://babychat.com/privacidad")!
+    private let helpURL = URL(string: "https://babychatweb.onrender.com/reportes")!
+    private let privacyURL = URL(string: "https://babychatweb.onrender.com/")!
     
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 // Encabezado
-                Text("¡Hola, Emily!")
+                Text("¡Hola, \(authManager.currentUser?.nombres ?? "Usuario")!")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -51,7 +53,7 @@ struct AjustesView: View {
                             
                             Spacer()
                             
-                            NavigationLink(destination: PerfilInfoView()) {
+                            NavigationLink(destination: PerfilInfoView().environmentObject(AuthManager.shared)) {
                                 Image(systemName: "chevron.right.circle.fill")
                                     .font(.system(size: 25, weight: .bold))
                                     .foregroundColor(.purple)
@@ -72,20 +74,18 @@ struct AjustesView: View {
                             .padding(.horizontal, 20)
                         
                         VStack(spacing: 12) {
-                            BabyItem(name: "Ethan", isSelected: selectedBaby == "Ethan") {
-                                selectedBaby = "Ethan"
-                            }
-                            
-                            BabyItem(name: "Lily", isSelected: selectedBaby == "Lily") {
-                                selectedBaby = "Lily"
-                            }
-                            
-                            BabyItem(name: "Alex", isSelected: selectedBaby == "Alex") {
-                                selectedBaby = "Alex"
+                            ForEach(authManager.babies, id: \.id) { baby in
+                                BabyItem(
+                                    baby: baby, // Pasar el objeto Baby completo
+                                    isSelected: selectedBaby == baby.id,
+                                    action: {
+                                        selectedBaby = baby.id
+                                    }
+                                )
                             }
                             
                             Button(action: {
-                                // Acción para agregar bebé
+                                bbShowAddBabySheet = true
                             }) {
                                 HStack {
                                     Spacer()
@@ -99,6 +99,15 @@ struct AjustesView: View {
                                     Spacer()
                                 }
                                 .padding(.vertical, 8)
+                            }
+                            .sheet(isPresented: $bbShowAddBabySheet) {
+                                RegistroBebeView(bbOnSaveComplete: {
+                                    // Actualizar la lista de bebés después de agregar uno nuevo
+                                    if let uid = authManager.currentUser?.uid {
+                                        authManager.fetchUserBabies(uid: uid)
+                                    }
+                                })
+                                .presentationCornerRadius(30)
                             }
                         }
                         .padding(.vertical, 5)
@@ -142,6 +151,7 @@ struct AjustesView: View {
                             .sheet(isPresented: $showNotifications) {
                                 NotificationsView()
                                     .presentationCornerRadius(30)
+                                    .padding(.vertical)
                             }
                             
                             Divider()
@@ -173,6 +183,8 @@ struct AjustesView: View {
                             .sheet(isPresented: $showExportData) {
                                 ExportDataView()
                                     .presentationCornerRadius(30)
+                                    .padding(.vertical)
+                                    .ignoresSafeArea(.all)
                             }
                         }
                         .padding(.vertical, 5)
@@ -301,7 +313,7 @@ struct AjustesView: View {
                     
                     // Footer
                     HStack {
-                        Text("Made for")
+                        Text("Made by")
                             .font(.caption)
                             .foregroundColor(.gray)
                         Text("The BabyChat Team")
@@ -374,7 +386,7 @@ struct AppInfoView: View {
 
 // Componente para elemento de bebé
 struct BabyItem: View {
-    var name: String
+    var baby: AuthManager.Baby // Cambiar para recibir el objeto Baby completo
     var isSelected: Bool
     var action: () -> Void
     @State private var viewBaby = false
@@ -382,13 +394,13 @@ struct BabyItem: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(name)
+                Text(baby.nombres) // Mostrar el nombre del bebé
                     .font(.subheadline)
                 
                 Spacer()
                 
                 HStack(spacing: 15) {
-                    // Botón para Cambio de Bebé
+                    // Botón para ver el perfil del bebé
                     Button(action: {
                         viewBaby = true
                     }) {
@@ -404,7 +416,7 @@ struct BabyItem: View {
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $viewBaby) {
-            BebeInfoView()
+            BebeInfoView(baby: baby) // Pasar el objeto Baby a BebeInfoView
                 .presentationCornerRadius(30)
         }
     }

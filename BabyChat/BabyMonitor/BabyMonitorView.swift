@@ -10,7 +10,7 @@ struct MonitorView: View {
     @State private var voltaje_gas: Double = 0
     @State private var cancellable: AnyCancellable?
     @State private var changeBaby = false
-    @State private var observaciones: String = "Presiona 'Analizar Datos' para obtener una evaluación del ambiente"
+    @State private var observaciones: String = "¿Quieres que analicemos el ambiente?"
     @State private var isLoadingObservations = false
     @State private var showVideoError = false
     @State private var isFullScreen = false
